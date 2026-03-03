@@ -5,7 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const path = require("path");
-const { scheduleMessage, cancelScheduledMessage, getScheduledMessages } = require("./scheduler");
+const { scheduleMessage, cancelScheduledMessage, getScheduledMessages, restoreJobs } = require("./scheduler");
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
 
 // ── WhatsApp Client ──────────────────────────────
@@ -34,6 +34,7 @@ client.on("qr", async (qr) => {
 client.on("ready", () => {
   latestQR = null;
   console.log("WhatsApp client is ready!");
+  restoreJobs(client); // ← add this line
 });
 
 client.on("message", async (msg) => {
