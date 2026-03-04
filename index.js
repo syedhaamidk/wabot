@@ -10,7 +10,7 @@ const fs        = require("fs");
 const { signup, login, requireAuth } = require("./auth");
 
 // ── Ensure data directory exists on startup ──────────────────────────────────
-const DATA_DIR = path.join(__dirname, "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   console.log("[Startup] Created data/ directory");
@@ -24,7 +24,6 @@ const {
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
 
 // ── Per-user WhatsApp clients ────────────────────────────────────────────────
-// Map<userId, { client, qr, status }>
 const userSessions = new Map();
 
 function createClient(userId) {
@@ -34,7 +33,7 @@ function createClient(userId) {
   userSessions.set(userId, session);
 
   const client = new Client({
-    authStrategy: new LocalAuth({ clientId: userId, dataPath: path.join(__dirname, "data", userId, ".wwebjs_auth") }),
+    authStrategy: new LocalAuth({ clientId: userId, dataPath: path.join(DATA_DIR, userId, ".wwebjs_auth") }),
     puppeteer: {
       headless: true,
       executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
@@ -92,13 +91,8 @@ function getSession(userId) {
 
 // ── Restore existing users' sessions on startup ──────────────────────────────
 function restoreExistingSessions() {
-  const dataDir = path.join(__dirname, "data");
-  if (!fs.existsSync(dataDir)) return;
-
-  // Load users.json to find all user IDs
-  const usersFile = path.join(dataDir, "users.json");
+  const usersFile = path.join(DATA_DIR, "users.json");
   if (!fs.existsSync(usersFile)) return;
-
   try {
     const users = JSON.parse(fs.readFileSync(usersFile, "utf8"));
     Object.values(users).forEach(user => {
@@ -114,13 +108,15 @@ function restoreExistingSessions() {
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-// ── Pages (before static so / always serves login, not a public/index.html) ───
+
+// ── Pages — MUST be before express.static so / always serves login.html ──────
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
+
 app.use(express.static(path.join(__dirname, "public")));
 
 // ── Auth routes (public) ─────────────────────────────────────────────────────
@@ -129,7 +125,6 @@ app.post("/api/auth/signup", (req, res) => {
   if (!email || !password) return res.status(400).json({ error: "Email and password required." });
   const result = signup(email, password);
   if (result.error) return res.status(400).json(result);
-  // Spin up their WhatsApp client
   createClient(result.id);
   res.json(result);
 });
@@ -139,7 +134,6 @@ app.post("/api/auth/login", (req, res) => {
   if (!email || !password) return res.status(400).json({ error: "Email and password required." });
   const result = login(email, password);
   if (result.error) return res.status(401).json(result);
-  // Ensure their client is running
   if (!userSessions.has(result.id)) createClient(result.id);
   res.json(result);
 });
@@ -172,7 +166,7 @@ app.post("/api/logout-whatsapp", async (req, res) => {
     await session.client.logout();
     session.status = "disconnected";
     session.qr = null;
-    // Delete from map so createClient can reinitialize properly
+    // Remove from map so createClient can make a fresh session
     userSessions.delete(req.user.id);
     setTimeout(() => createClient(req.user.id), 2000);
     res.json({ success: true });
@@ -188,14 +182,12 @@ app.get("/api/contacts", async (req, res) => {
     return res.status(503).json({ error: "WhatsApp not connected." });
   try {
     const contacts = await session.client.getContacts();
-    // Deduplicate by normalized number, prefer entry with real name
     const seen = new Map();
     contacts
       .filter(c => !c.isGroup && c.number)
       .forEach(c => {
         const num = c.number.replace(/\D/g, "");
         if (!num) return;
-        // Try every name field WhatsApp exposes
         const name = c.pushname || c.verifiedName || c.shortName || c.name || "";
         const existing = seen.get(num);
         const hasRealName = name && name !== num && !/^\d+$/.test(name) && name.length > 1;
@@ -217,7 +209,7 @@ app.get("/api/scheduled", (req, res) => {
 });
 
 app.post("/api/scheduled", (req, res) => {
-  const { recipient, message, sendAt } = req.body;
+  const { recipient, message, sendAt, recipientName } = req.body;
   if (!recipient || !message || !sendAt)
     return res.status(400).json({ error: "recipient, message and sendAt are required." });
   const sendTime = new Date(sendAt);
@@ -225,21 +217,19 @@ app.post("/api/scheduled", (req, res) => {
     return res.status(400).json({ error: "sendAt must be a valid future date." });
   const session = getSession(req.user.id);
   if (!session) return res.status(503).json({ error: "Session not found." });
-  const { recipientName } = req.body;
   const job = scheduleMessage(session.client, req.user.id, { recipient, recipientName, message, sendAt: sendTime });
   res.json({ success: true, job });
 });
 
 app.patch("/api/scheduled/:id", (req, res) => {
-  const { recipient, message, sendAt } = req.body;
+  const { recipient, message, sendAt, recipientName } = req.body;
   if (!recipient || !message || !sendAt)
     return res.status(400).json({ error: "recipient, message and sendAt are required." });
   const sendTime = new Date(sendAt);
   if (isNaN(sendTime) || sendTime <= new Date())
     return res.status(400).json({ error: "sendAt must be a valid future date." });
   const session = getSession(req.user.id);
-  const { recipientName: rn } = req.body;
-  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient, recipientName: rn, message, sendAt: sendTime });
+  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient, recipientName, message, sendAt: sendTime });
   if (!job) return res.status(404).json({ error: "Job not found or not editable." });
   res.json({ success: true, job });
 });

@@ -1133,7 +1133,7 @@ function renderContactDropdown(prefix, list, query){
   const searchHtml = `<div class="cp-search"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" value="${esc(query||"")}"/></div>`;
 
   const bodyHtml = !filtered.length
-    ? `<div class="cp-empty">${q ? "No results for "" + esc(q) + """ : "No contacts"}</div>`
+    ? `<div class="cp-empty">${q ? 'No results for "' + esc(q) + '"' : "No contacts"}</div>`
     : filtered.slice(0,100).map(c => {
         const name  = getDisplayName(c);
         const inits = getInitials(name);

@@ -2,21 +2,19 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-// ── Use DATA_DIR env var if set (e.g. Railway Volume mount), else local data/ ─
+// Use DATA_DIR env var if set (Railway Volume mount), else local data/
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 
-// ── Ensure data dir exists ───────────────────────────────────────────────────
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// ── Simple JWT (no external deps) ───────────────────────────────────────────
-// JWT_SECRET must be set as an env variable — never rely on Math.random() as
-// that generates a new secret on every server restart, invalidating all tokens.
+// JWT_SECRET must be a fixed env variable — never use Math.random() as it
+// generates a new secret on every restart, invalidating all existing tokens.
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.error("[auth] FATAL: JWT_SECRET environment variable is not set. Please add it in Railway → Variables.");
+  console.error("[auth] FATAL: JWT_SECRET env variable not set. Add it in Railway → Variables.");
   process.exit(1);
 }
 
@@ -39,20 +37,17 @@ function verifyToken(token) {
                        .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
     if (sig !== expected) return null;
     const payload = JSON.parse(Buffer.from(body, "base64").toString());
-    // Token expires in 30 days
     if (Date.now() - payload.iat > 30 * 24 * 60 * 60 * 1000) return null;
     return payload;
   } catch { return null; }
 }
 
-// ── Password hashing ─────────────────────────────────────────────────────────
 function hashPassword(password, salt) {
   salt = salt || crypto.randomBytes(16).toString("hex");
   const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, "sha512").toString("hex");
   return { hash, salt };
 }
 
-// ── User store ───────────────────────────────────────────────────────────────
 function loadUsers() {
   ensureDataDir();
   if (!fs.existsSync(USERS_FILE)) return {};
@@ -65,7 +60,6 @@ function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-// ── Auth functions ───────────────────────────────────────────────────────────
 function signup(email, password) {
   const users = loadUsers();
   const key = email.toLowerCase().trim();
@@ -76,7 +70,6 @@ function signup(email, password) {
   const { hash, salt } = hashPassword(password);
   users[key] = { id, email: key, hash, salt, createdAt: new Date().toISOString() };
   saveUsers(users);
-  // Create user data dir
   const userDir = path.join(DATA_DIR, id);
   if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
   return { token: signToken({ id, email: key }), id, email: key };
@@ -92,7 +85,6 @@ function login(email, password) {
   return { token: signToken({ id: user.id, email: key }), id: user.id, email: key };
 }
 
-// ── Express middleware ────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : req.query._token;
