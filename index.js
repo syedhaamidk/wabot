@@ -25,6 +25,7 @@ const client = new Client({
   puppeteer: {
     headless: true,
     executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
+    protocolTimeout: 60000,   // 60 s — prevents "callFunctionOn timed out" on slow sends
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",

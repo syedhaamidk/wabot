@@ -45,7 +45,12 @@ async function sendJob(client, job) {
     }
     return true;
   } catch (err) {
-    console.error("[Scheduler] Failed to send to " + job.recipient + ":", err.message);
+    const isTimeout = err.message && (
+      err.message.includes("timed out") ||
+      err.message.includes("protocolTimeout") ||
+      err.message.includes("Target closed")
+    );
+    console.error(`[Scheduler] Failed to send to ${job.recipient} (${isTimeout ? "timeout" : "error"}): ${err.message}`);
     const existing = scheduledMessages.get(job.id);
     if (existing) {
       scheduledMessages.set(job.id, { ...existing, status: "failed", failedAt: new Date().toISOString(), error: err.message, timeout: null });
@@ -56,13 +61,26 @@ async function sendJob(client, job) {
 }
 
 // ── Retry helper — waits `delayMs`, tries sendJob, retries up to `attempts` times
-// Uses exponential backoff: 5s → 15s → 45s before giving up
+// Uses exponential backoff: 10s → 30s → 90s before giving up
 function sendWithRetry(client, job, attempts, delayMs) {
   const timeout = setTimeout(async () => {
+    // Reset to pending so status reflects the retry attempt
+    const existing = scheduledMessages.get(job.id);
+    if (existing) {
+      scheduledMessages.set(job.id, { ...existing, status: "pending", timeout: null });
+    }
+
     const ok = await sendJob(client, job);
     if (!ok && attempts > 1) {
-      console.log(`[Scheduler] Retry ${4 - attempts + 1} for ${job.recipient} in ${delayMs * 3}ms`);
-      sendWithRetry(client, job, attempts - 1, delayMs * 3);
+      const nextDelay = delayMs * 3;
+      console.log(`[Scheduler] Retry ${4 - attempts + 1} for ${job.recipient} in ${nextDelay / 1000}s`);
+      // Reset failed status so the next retry can proceed
+      const current = scheduledMessages.get(job.id);
+      if (current) {
+        scheduledMessages.set(job.id, { ...current, status: "pending", timeout: null });
+        saveToFile();
+      }
+      sendWithRetry(client, job, attempts - 1, nextDelay);
     }
   }, delayMs);
 
@@ -200,9 +218,9 @@ function restoreJobs(client) {
     } else {
       // Past-due — wait 5s for WhatsApp session to fully warm up, then retry up to 3x
       // Backoff: 5s → 15s → 45s
-      console.log("[Scheduler] Past-due job for " + job.recipient + " (was due " + new Date(job.sendAt).toLocaleString() + ") — retrying in 5s");
+      console.log("[Scheduler] Past-due job for " + job.recipient + " (was due " + new Date(job.sendAt).toLocaleString() + ") — retrying in 10s");
       scheduledMessages.set(job.id, { ...job, timeout: null });
-      sendWithRetry(client, job, 3, 5000);
+      sendWithRetry(client, job, 3, 10000);
       sentLate++;
     }
   });
