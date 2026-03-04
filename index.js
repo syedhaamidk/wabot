@@ -180,9 +180,10 @@ app.get("/api/contacts", async (req, res) => {
       .forEach(c => {
         const num = c.number.replace(/\D/g, "");
         if (!num) return;
-        const name = c.pushname || c.name || "";
+        // Try every name field WhatsApp exposes
+        const name = c.pushname || c.verifiedName || c.shortName || c.name || "";
         const existing = seen.get(num);
-        const hasRealName = name && name !== num && name.length > 1;
+        const hasRealName = name && name !== num && !/^\d+$/.test(name) && name.length > 1;
         if (!existing || hasRealName) {
           seen.set(num, { id: c.id._serialized, name: hasRealName ? name : "", number: num });
         }

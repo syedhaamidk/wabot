@@ -42,7 +42,7 @@
   --shadow:     0 1px 0 var(--sep);
 }
 /* ══ CONTACT PICKER ══ */
-.cp-wrap{position:relative}
+.cp-wrap{position:static}
 .cp-input-row{display:flex;align-items:center;gap:8px}
 .cp-btn{
   flex-shrink:0;padding:5px 10px;border-radius:8px;
@@ -51,21 +51,23 @@
   cursor:pointer;white-space:nowrap;border:none;font-family:inherit;transition:.12s;
 }
 .cp-btn:hover{background:var(--green);color:#fff}
+/* Dropdown as floating panel to the RIGHT of the form column */
 .cp-dropdown{
-  position:absolute;top:100%;left:-16px;right:-16px;z-index:50;
-  background:var(--surface);border-radius:12px;
-  box-shadow:0 8px 40px rgba(0,0,0,.18);
-  max-height:240px;overflow-y:auto;
-  border:1px solid var(--sep);margin-top:4px;
+  position:fixed;z-index:200;
+  width:280px;
+  background:var(--surface);border-radius:14px;
+  box-shadow:0 12px 48px rgba(0,0,0,.25);
+  max-height:320px;overflow-y:auto;
+  border:1px solid var(--sep);
 }
-.cp-search{padding:10px 14px;border-bottom:1px solid var(--sep);position:sticky;top:0;background:var(--surface)}
+.cp-search{padding:10px 14px;border-bottom:1px solid var(--sep);position:sticky;top:0;background:var(--surface);z-index:1}
 .cp-search input{font-size:14px;width:100%;background:transparent;color:var(--text)}
 .cp-search input::placeholder{color:var(--sub)}
 .cp-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:.1s}
 .cp-item:hover{background:var(--surface2)}
-.cp-avatar{width:34px;height:34px;border-radius:50%;background:var(--green-bg);color:var(--green);display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0}
-.cp-name{font-size:14px;font-weight:500}
-.cp-num{font-size:12px;color:var(--sub);margin-top:1px}
+.cp-avatar{width:34px;height:34px;border-radius:50%;background:var(--green-bg);color:var(--green);display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0;flex-shrink:0}
+.cp-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cp-num{font-size:11px;color:var(--sub);margin-top:1px}
 .cp-empty{padding:20px;text-align:center;color:var(--sub);font-size:14px}
 .cp-loading{padding:16px;text-align:center;color:var(--sub);font-size:13px}
 /* ══ USER BADGE ══ */
@@ -1038,36 +1040,58 @@ async function disconnectWA(){
 // ── Contact Picker ──
 let contacts = null;
 let cpOpen = null;
-let cpSearchQuery = {};
 
 async function loadContacts(){
   if (contacts) return contacts;
   try {
     const r = await afetch(API+"/contacts");
     if (!r.ok) { contacts = []; return contacts; }
-    const raw = await r.json();
-    // Deduplicate by number — keep entry with best name
-    const seen = new Map();
-    raw.forEach(c => {
-      const num = (c.number||"").replace(/\D/g,"");
-      if (!num) return;
-      const existing = seen.get(num);
-      const hasName = c.name && c.name !== c.number && c.name.length > 2;
-      if (!existing || hasName) seen.set(num, {...c, number: num});
-    });
-    contacts = Array.from(seen.values()).sort((a,b) => (a.name||a.number).localeCompare(b.name||b.number));
+    contacts = await r.json();
   } catch(e){ contacts = []; }
   return contacts;
 }
 
+function getDisplayName(c) {
+  // Best available name — fallback to formatted number
+  if (c.name && c.name.trim() && c.name !== c.number) return c.name.trim();
+  return "+" + c.number;
+}
+
+function getInitials(displayName) {
+  const words = displayName.replace(/[^a-zA-Z0-9 ]/g," ").trim().split(/\s+/);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return displayName.replace(/[^a-zA-Z0-9]/g,"").slice(0,2).toUpperCase() || "?";
+}
+
+function positionDropdown(prefix) {
+  const btn = document.getElementById(prefix+"-cp-btn");
+  const dd  = document.getElementById(prefix+"-cp-dropdown");
+  if (!btn || !dd) return;
+  const rect = btn.getBoundingClientRect();
+  const spaceRight = window.innerWidth - rect.right;
+  const spaceLeft  = rect.left;
+  const ddW = 280;
+  // Try to place to the right of the button; if not enough room, left
+  let left;
+  if (spaceRight >= ddW + 8) {
+    left = rect.right + 8;
+  } else if (spaceLeft >= ddW + 8) {
+    left = rect.left - ddW - 8;
+  } else {
+    // Fallback: below the button, full available width
+    left = Math.max(8, Math.min(rect.left, window.innerWidth - ddW - 8));
+  }
+  const top = Math.min(rect.bottom + 4, window.innerHeight - 340);
+  dd.style.left = left + "px";
+  dd.style.top  = Math.max(8, top) + "px";
+}
+
 async function toggleContactPicker(prefix){
   const dropdown = document.getElementById(prefix+"-cp-dropdown");
-  if (dropdown.style.display !== "none") {
-    closeContactPicker(prefix); return;
-  }
+  if (dropdown.style.display !== "none") { closeContactPicker(prefix); return; }
   cpOpen = prefix;
-  cpSearchQuery[prefix] = "";
   dropdown.style.display = "block";
+  positionDropdown(prefix);
   dropdown.innerHTML = "<div class=\"cp-loading\">Loading contacts…</div>";
   const list = await loadContacts();
   renderContactDropdown(prefix, list, "");
@@ -1083,78 +1107,63 @@ function renderContactDropdown(prefix, list, query){
   const dropdown = document.getElementById(prefix+"-cp-dropdown");
   if (!dropdown) return;
   const q = (query||"").toLowerCase().trim();
-  const filtered = q ? list.filter(c =>
-    (c.name||"").toLowerCase().includes(q) || (c.number||"").includes(q)
-  ) : list;
+  const filtered = q
+    ? list.filter(c => getDisplayName(c).toLowerCase().includes(q) || (c.number||"").includes(q))
+    : list;
 
-  // Build search input (always present)
-  const searchHtml = `<div class="cp-search"><input id="cp-search-${prefix}" type="text" placeholder="Search by name or number…" autocomplete="off"/></div>`;
+  const searchHtml = `<div class="cp-search"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" value="${esc(query||"")}"/></div>`;
 
-  let bodyHtml;
-  if (!filtered.length) {
-    bodyHtml = "<div class=\"cp-empty\">No contacts found</div>";
-  } else {
-    bodyHtml = filtered.slice(0, 80).map(c => {
-      const displayName = c.name && c.name !== c.number ? c.name : "+" + c.number;
-      const initials = displayName.replace(/[^a-zA-Z0-9]/g,"").slice(0,2).toUpperCase() || "?";
-      const safeNum = (c.number||"").replace(/['"]/g,"");
-      const safeName = (displayName||"").replace(/['"\\]/g,"").replace(/</g,"&lt;");
-      const safeInitials = initials.replace(/</g,"&lt;");
-      return `<div class="cp-item" data-num="${safeNum}" data-name="${safeName}">
-        <div class="cp-avatar">${safeInitials}</div>
-        <div><div class="cp-name">${safeName}</div><div class="cp-num">+${safeNum}</div></div>
-      </div>`;
-    }).join("");
-  }
+  const bodyHtml = !filtered.length
+    ? `<div class="cp-empty">${q ? "No results for "" + esc(q) + """ : "No contacts"}</div>`
+    : filtered.slice(0,100).map(c => {
+        const name  = getDisplayName(c);
+        const inits = getInitials(name);
+        return `<div class="cp-item" data-num="${esc(c.number)}" data-name="${esc(name)}">
+          <div class="cp-avatar">${esc(inits)}</div>
+          <div style="min-width:0"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div>
+        </div>`;
+      }).join("");
 
   dropdown.innerHTML = searchHtml + bodyHtml;
 
-  // Attach search listener directly to the input element (avoids inline handler escaping issues)
-  const searchInput = document.getElementById("cp-search-" + prefix);
-  if (searchInput) {
-    searchInput.value = query || "";
-    searchInput.addEventListener("input", function(){ 
-      cpSearchQuery[prefix] = this.value;
+  const si = document.getElementById("cp-si-"+prefix);
+  if (si) {
+    si.addEventListener("input", function(){
       loadContacts().then(l => renderContactDropdown(prefix, l, this.value));
     });
-    setTimeout(() => searchInput.focus(), 30);
+    // Don't auto-focus on mobile (prevents keyboard jump)
+    if (window.innerWidth > 640) setTimeout(()=>si.focus(),30);
   }
 
-  // Attach click listeners to items
   dropdown.querySelectorAll(".cp-item").forEach(item => {
-    item.addEventListener("click", () => {
-      selectContact(prefix, item.dataset.num, item.dataset.name);
-    });
+    item.addEventListener("click", ()=> selectContact(prefix, item.dataset.num, item.dataset.name));
   });
 }
 
 function selectContact(prefix, number, name){
   document.getElementById(prefix+"-to").value = number;
   document.getElementById(prefix+"-to-name").value = name;
-  // Update button to show selected name
   const btn = document.getElementById(prefix+"-cp-btn");
-  if (btn) btn.textContent = "✓ " + (name.length > 12 ? name.slice(0,12)+"…" : name);
+  if (btn) btn.textContent = "✓ " + (name.length > 14 ? name.slice(0,14)+"…" : name);
   closeContactPicker(prefix);
 }
 
 function onToInput(val){
-  // Clear name if user manually edits the number
   document.getElementById("s-to-name").value = "";
   const btn = document.getElementById("s-cp-btn");
   if (btn) btn.textContent = "👤 Contacts";
-  const dropdown = document.getElementById("s-cp-dropdown");
-  if (dropdown && dropdown.style.display !== "none") {
-    closeContactPicker("s");
-  }
+  closeContactPicker("s");
 }
 
-// Close picker when clicking outside
+// Close on outside click
 document.addEventListener("click", e => {
-  if (cpOpen) {
-    const wrap = document.getElementById(cpOpen+"-to-wrap");
-    if (wrap && !wrap.contains(e.target)) closeContactPicker(cpOpen);
-  }
+  if (!cpOpen) return;
+  const wrap = document.getElementById(cpOpen+"-to-wrap");
+  const dd   = document.getElementById(cpOpen+"-cp-dropdown");
+  if (wrap && !wrap.contains(e.target) && dd && !dd.contains(e.target)) closeContactPicker(cpOpen);
 });
+// Reposition on scroll/resize
+window.addEventListener("resize", ()=>{ if (cpOpen) positionDropdown(cpOpen); });
 
 chkStatus();loadQ();loadTrash();lAR();
 setInterval(chkStatus,8000);
