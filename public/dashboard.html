@@ -207,7 +207,7 @@ html,body{
 .sb:not(.sb-expanded) .sb-toggle{display:none}
 
 /* ── footer ── */
-.sb-foot{padding:10px 10px 14px;border-top:1px solid var(--sep);flex-shrink:0}
+.sb-foot{padding:10px 10px 14px;border-top:1px solid var(--sep);flex-shrink:0;overflow:hidden}
 .sb-user{
   display:flex;align-items:center;gap:7px;
   padding:8px 10px;border-radius:9px;
@@ -225,8 +225,8 @@ html,body{
   cursor:default;
 }
 /* collapsed footer: center dots */
-.sb:not(.sb-expanded) .sb-foot{padding:10px 6px 14px}
-.sb:not(.sb-expanded) .sb-user{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
+.sb:not(.sb-expanded) .sb-foot{padding:10px 6px 14px;overflow:hidden}
+.sb:not(.sb-expanded) .sb-user{justify-content:center;padding:8px 0;background:transparent;border-color:transparent;overflow:hidden}
 .sb:not(.sb-expanded) .conn-pill{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
 .sb:not(.sb-expanded) .theme-toggle{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
 
