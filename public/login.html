@@ -19,7 +19,7 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
 .orb-2{width:clamp(300px,45vw,550px);height:clamp(300px,45vw,550px);bottom:-15%;right:-10%;background:radial-gradient(circle,rgba(22,163,74,.16) 0%,transparent 70%);animation-duration:26s;animation-direction:alternate-reverse}
 .orb-3{width:clamp(200px,30vw,380px);height:clamp(200px,30vw,380px);top:40%;left:55%;background:radial-gradient(circle,rgba(74,222,128,.1) 0%,transparent 70%);animation-duration:16s}
 @keyframes float{0%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-20px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.97)}100%{transform:translate(40px,10px) scale(1.08)}}
-.grid{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(34,197,94,.1) 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+.grid{position:absolute;inset:0;} #dot-canvas{position:absolute;inset:0;width:100%;height:100%;}
 
 /* LAYOUT */
 .shell{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1fr 1fr;align-items:center}
@@ -117,7 +117,7 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
   <div class="orb orb-3"></div>
-  <div class="grid"></div>
+  <div class="grid"><canvas id="dot-canvas"></canvas></div>
 </div>
 
 <div class="shell">
@@ -278,6 +278,142 @@ document.addEventListener("keydown",e=>{
   if (e.key!=="Enter") return;
   document.getElementById("form-login").style.display!=="none" ? doLogin() : doSignup();
 });
+</script>
+
+<script>
+(function(){
+  const canvas = document.getElementById('dot-canvas');
+  const ctx = canvas.getContext('2d');
+
+  const SPACING  = 34;
+  const BASE_R   = 1.2;
+  const MAX_R    = 5;
+  const REACH    = 160;   // how far the cursor influence extends
+  const LERP_M   = 0.09;  // mouse smoothing
+  const DECAY    = 0.055; // how fast dots fade after cursor leaves
+  const RISE     = 0.18;  // how fast dots light up
+  const RIPPLE_SPEED = 3.5;
+  const RIPPLE_LIFE  = 55;
+
+  let mouse  = { x: -9999, y: -9999 };
+  let smooth = { x: -9999, y: -9999 };
+  let dots   = [];
+  let ripples = [];
+
+  /* ── Build dot grid ── */
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    buildDots();
+  }
+
+  function buildDots() {
+    const cols = Math.ceil(canvas.width  / SPACING) + 2;
+    const rows = Math.ceil(canvas.height / SPACING) + 2;
+    // Offset so grid is centered
+    const offX = ((canvas.width  % SPACING) / 2);
+    const offY = ((canvas.height % SPACING) / 2);
+    dots = [];
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        dots.push({ x: offX + c * SPACING, y: offY + r * SPACING, g: 0 });
+  }
+
+  /* ── Ripple on click ── */
+  function spawnRipple(x, y) {
+    ripples.push({ x, y, t: 0 });
+  }
+
+  /* ── Main loop ── */
+  function draw() {
+    // Smooth mouse
+    smooth.x += (mouse.x - smooth.x) * LERP_M;
+    smooth.y += (mouse.y - smooth.y) * LERP_M;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Vignette reference
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const maxV = Math.hypot(cx, cy) * 0.9;
+
+    for (const d of dots) {
+      // Cursor proximity
+      const md   = Math.hypot(d.x - smooth.x, d.y - smooth.y);
+      const target = md < REACH ? Math.pow(1 - md / REACH, 1.6) : 0;
+
+      // Ripple contribution
+      let rippleBoost = 0;
+      for (const rp of ripples) {
+        const rd   = Math.hypot(d.x - rp.x, d.y - rp.y);
+        const wave = rp.t * RIPPLE_SPEED;
+        const band = 28;
+        const diff = Math.abs(rd - wave);
+        if (diff < band) {
+          const strength = (1 - diff / band) * (1 - rp.t / RIPPLE_LIFE);
+          rippleBoost = Math.max(rippleBoost, strength * 0.9);
+        }
+      }
+
+      const combined = Math.min(1, target + rippleBoost);
+      // Smooth glow value
+      d.g += (combined - d.g) * (combined > d.g ? RISE : DECAY);
+
+      if (d.g < 0.005) continue;
+
+      // Vignette: edges of screen are dimmer
+      const vd   = Math.hypot(d.x - cx, d.y - cy);
+      const vign = Math.max(0.08, 1 - vd / maxV);
+
+      const g     = d.g * vign;
+      const r     = BASE_R + (MAX_R - BASE_R) * g;
+      const alpha = 0.1 + g * 0.9;
+
+      // Outer glow halo
+      if (g > 0.04) {
+        const haloR = r * 6;
+        const grad  = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, haloR);
+        grad.addColorStop(0,   `rgba(74,222,128,${g * 0.28})`);
+        grad.addColorStop(0.4, `rgba(34,197,94,${g * 0.12})`);
+        grad.addColorStop(1,   `rgba(34,197,94,0)`);
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, haloR, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // Core dot — white-hot center fading to green
+      const coreGrad = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, r);
+      coreGrad.addColorStop(0,   `rgba(255,255,255,${Math.min(1, alpha * 1.4)})`);
+      coreGrad.addColorStop(0.4, `rgba(134,239,172,${alpha})`);
+      coreGrad.addColorStop(1,   `rgba(34,197,94,${alpha * 0.6})`);
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = coreGrad;
+      ctx.fill();
+    }
+
+    // Advance ripples
+    ripples = ripples.filter(rp => {
+      rp.t++;
+      return rp.t < RIPPLE_LIFE;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('touchmove', e => {
+    mouse.x = e.touches[0].clientX;
+    mouse.y = e.touches[0].clientY;
+  }, { passive: true });
+  window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+  window.addEventListener('click',      e => spawnRipple(e.clientX, e.clientY));
+  window.addEventListener('touchstart', e => spawnRipple(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+  window.addEventListener('resize', resize);
+
+  resize();
+  draw();
+})();
 </script>
 </body>
 </html>
