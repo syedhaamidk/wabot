@@ -32,19 +32,27 @@ function createClient(userId) {
   const session = { client: null, qr: null, status: "initializing" };
   userSessions.set(userId, session);
 
+  // Build puppeteer config — use CHROMIUM_PATH env var if set (e.g. on Railway),
+  // otherwise fall back to puppeteer's own bundled Chromium
+  const puppeteerConfig = {
+    headless: true,
+    protocolTimeout: 120000,
+    args: [
+      "--no-sandbox", "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage", "--disable-gpu",
+      "--disable-extensions", "--disable-background-networking",
+      "--disable-background-timer-throttling",
+      "--disable-renderer-backgrounding",
+      "--js-flags=--max-old-space-size=256"
+    ]
+  };
+  if (process.env.CHROMIUM_PATH) {
+    puppeteerConfig.executablePath = process.env.CHROMIUM_PATH;
+  }
+
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: userId, dataPath: path.join(DATA_DIR, userId, ".wwebjs_auth") }),
-    puppeteer: {
-      headless: true,
-      executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
-      protocolTimeout: 120000,
-      args: [
-        "--no-sandbox", "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage", "--disable-gpu",
-        "--disable-extensions", "--disable-background-networking",
-        "--js-flags=--max-old-space-size=256"
-      ]
-    }
+    puppeteer: puppeteerConfig
   });
 
   client.on("qr", async (qr) => {
