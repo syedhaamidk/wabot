@@ -40,6 +40,38 @@
   --trk:        rgba(120,120,128,.16);
   --shadow:     0 1px 0 var(--sep);
 }
+/* ══ CONTACT PICKER ══ */
+.cp-wrap{position:relative}
+.cp-input-row{display:flex;align-items:center;gap:8px}
+.cp-btn{
+  flex-shrink:0;padding:5px 10px;border-radius:8px;
+  font-size:12px;font-weight:600;
+  background:var(--green-bg);color:var(--green);
+  cursor:pointer;white-space:nowrap;border:none;font-family:inherit;transition:.12s;
+}
+.cp-btn:hover{background:var(--green);color:#fff}
+.cp-dropdown{
+  position:absolute;top:100%;left:-16px;right:-16px;z-index:50;
+  background:var(--surface);border-radius:12px;
+  box-shadow:0 8px 40px rgba(0,0,0,.18);
+  max-height:240px;overflow-y:auto;
+  border:1px solid var(--sep);margin-top:4px;
+}
+.cp-search{padding:10px 14px;border-bottom:1px solid var(--sep);position:sticky;top:0;background:var(--surface)}
+.cp-search input{font-size:14px;width:100%;background:transparent;color:var(--text)}
+.cp-search input::placeholder{color:var(--sub)}
+.cp-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:.1s}
+.cp-item:hover{background:var(--surface2)}
+.cp-avatar{width:34px;height:34px;border-radius:50%;background:var(--green-bg);color:var(--green);display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0}
+.cp-name{font-size:14px;font-weight:500}
+.cp-num{font-size:12px;color:var(--sub);margin-top:1px}
+.cp-empty{padding:20px;text-align:center;color:var(--sub);font-size:14px}
+.cp-loading{padding:16px;text-align:center;color:var(--sub);font-size:13px}
+/* ══ USER BADGE ══ */
+.user-badge{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--surface2);margin-bottom:8px}
+.user-email{font-size:12px;color:var(--sub);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logout-btn{font-size:12px;font-weight:600;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;flex-shrink:0;padding:2px 4px}
+.logout-btn:hover{text-decoration:underline}
 [data-theme="dark"]{
   --bg:         #000000;
   --surface:    #1c1c1e;
@@ -545,6 +577,10 @@ textarea{resize:none}
   </nav>
 
   <div class="sb-foot">
+    <div class="user-badge">
+      <span class="user-email" id="sb-email">Loading…</span>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
     <div class="conn-row">
       <div class="conn-dot" id="sb-dot"></div>
       <div class="conn-info">
@@ -593,7 +629,14 @@ textarea{resize:none}
         <div>
           <div class="sec-lbl">New message</div>
           <div class="group">
-            <div class="f"><label>To</label><input id="s-to" type="tel" placeholder="919876543210" autocomplete="tel"/></div>
+            <div class="f cp-wrap" id="s-to-wrap">
+  <label>To</label>
+  <div class="cp-input-row">
+    <input id="s-to" type="tel" placeholder="919876543210 or search contacts…" autocomplete="off" oninput="onToInput(this.value)"/>
+    <button class="cp-btn" onclick="toggleContactPicker('s')" type="button">👤 Contacts</button>
+  </div>
+  <div class="cp-dropdown" id="s-cp-dropdown" style="display:none"></div>
+</div>
             <div class="f"><label>Message</label><textarea id="s-msg" placeholder="What do you want to say?"></textarea></div>
             <div class="f"><label>Send at</label><div class="cal-wrap"><input id="s-at" placeholder="Pick date &amp; time…" readonly/><span class="cal-icon">📅</span></div></div>
             <div class="f"><button class="btn btn-primary" onclick="addMsg()">Schedule</button></div>
@@ -653,6 +696,7 @@ textarea{resize:none}
           <div class="qr-status-tag" id="qr-tag">Checking…</div>
           <div class="qr-note" id="qr-note">Open WhatsApp → Linked Devices → Link a Device → scan this QR</div>
           <button class="qr-refresh" onclick="loadQR()">↻ Refresh</button>
+          <button class="qr-refresh" onclick="disconnectWA()" style="color:var(--red)">⏏ Disconnect WhatsApp</button>
         </div>
       </div>
 
@@ -684,7 +728,14 @@ textarea{resize:none}
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-head"><div class="modal-title">Edit message</div><button class="modal-x" onclick="closeEditModal()">✕</button></div>
     <div class="modal-body">
-      <div class="f"><label>To</label><input id="e-to" type="tel" placeholder="919876543210"/></div>
+      <div class="f cp-wrap" id="e-to-wrap">
+  <label>To</label>
+  <div class="cp-input-row">
+    <input id="e-to" type="tel" placeholder="919876543210 or search contacts…" autocomplete="off"/>
+    <button class="cp-btn" onclick="toggleContactPicker('e')" type="button">👤 Contacts</button>
+  </div>
+  <div class="cp-dropdown" id="e-cp-dropdown" style="display:none"></div>
+</div>
       <div class="f"><label>Message</label><textarea id="e-msg"></textarea></div>
       <div class="f"><label>Send at</label><div class="cal-wrap"><input id="e-at" placeholder="Pick date &amp; time…" readonly/><span class="cal-icon">📅</span></div></div>
     </div>
@@ -711,7 +762,14 @@ textarea{resize:none}
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-const API=(location.hostname==="localhost"||location.hostname==="127.0.0.1")?"/api":"https://wabot-production-696d.up.railway.app/api";
+// ── Auth guard ──
+const TOKEN = localStorage.getItem("wabot-token");
+if (!TOKEN) window.location.href = "/";
+const API = "/api";
+const H = { "Content-Type": "application/json", "Authorization": "Bearer " + TOKEN };
+function afetch(url, opts = {}) {
+  return fetch(url, { ...opts, headers: { ...H, ...(opts.headers||{}) } });
+}
 let Q=[],TRASH=[];
 
 /* ── Theme ── */
@@ -754,7 +812,7 @@ function toast(m,t="ok"){const e=document.getElementById("tst");e.textContent=m;
 /* ── Status ── */
 async function chkStatus(){
   try{
-    const d=await(await fetch(API+"/status")).json();const on=d.connected;
+    const d=await(await afetch(API+"/status")).json();const on=d.connected;
     document.getElementById("sb-dot").className="conn-dot"+(on?" on":"");
     document.getElementById("sb-lbl").textContent=on?"Connected":"Disconnected";
     document.getElementById("sb-lbl").className="conn-label"+(on?" on":"");
@@ -781,7 +839,7 @@ async function loadQR(){
   const phtxt=document.getElementById("qr-placeholder-txt");
   try{
     // check status first
-    const st=await(await fetch(API+"/status")).json();
+    const st=await(await afetch(API+"/status")).json();
     if(st.connected){
       tag.textContent="Connected";tag.className="qr-status-tag qr-connected";
       ph.style.display="flex";phtxt.textContent="✓ Connected";
@@ -790,7 +848,7 @@ async function loadQR(){
       return;
     }
     // fetch QR
-    const r=await fetch(API+"/qr-data");
+    const r=await afetch(API+"/qr-data");
     if(r.ok){
       const d=await r.json();
       if(d.qr){
@@ -833,7 +891,7 @@ function renderQ(){
     </div>`;
   }).join("");
 }
-async function loadQ(){try{Q=await(await fetch(API+"/scheduled")).json();renderQ();}catch(e){}}
+async function loadQ(){try{Q=await(await afetch(API+"/scheduled")).json();renderQ();}catch(e){}}
 
 /* ── Trash ── */
 function renderTrash(){
@@ -856,9 +914,9 @@ function renderTrash(){
     </div>`;
   }).join("");
 }
-async function loadTrash(){try{TRASH=await(await fetch(API+"/trash")).json();renderTrash();}catch(e){}}
+async function loadTrash(){try{TRASH=await(await afetch(API+"/trash")).json();renderTrash();}catch(e){}}
 async function restoreMsg(id){
-  try{const r=await fetch(API+"/trash/"+id+"/restore",{method:"POST"});if(!r.ok)return toast("Could not restore","err");toast("Restored ✓");await loadQ();await loadTrash();}
+  try{const r=await afetch(API+"/trash/"+id+"/restore",{method:"POST"});if(!r.ok)return toast("Could not restore","err");toast("Restored ✓");await loadQ();await loadTrash();}
   catch(e){toast("Server offline","err");}
 }
 let ppId=null;
@@ -891,7 +949,7 @@ async function saveEdit(){
   if(!to||!msg||!at)return toast("Fill all fields","err");
   if(at<=new Date())return toast("Pick a future time","err");
   try{
-    const r=await fetch(API+"/scheduled/"+editingId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:to,message:msg,sendAt:at.toISOString()})});
+    const r=await afetch(API+"/scheduled/"+editingId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:to,message:msg,sendAt:at.toISOString()})});
     const d=await r.json();if(!r.ok)return toast(d.error||"Error","err");
     Q=Q.map(m=>m.id===editingId?d.job:m);renderQ();toast("Updated ✓");closeEditModal();
   }catch(e){toast("Server offline","err");}
@@ -908,7 +966,7 @@ async function addMsg(){
   const tmp={id:"tmp"+Date.now(),recipient:to,message:msg,sendAt,status:"pending"};
   Q.push(tmp);renderQ();
   try{
-    const r=await fetch(API+"/scheduled",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:to,message:msg,sendAt})});
+    const r=await afetch(API+"/scheduled",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:to,message:msg,sendAt})});
     const d=await r.json();
     if(!r.ok){Q=Q.filter(m=>m.id!==tmp.id);renderQ();return toast(d.error||"Error","err");}
     Q=Q.map(m=>m.id===tmp.id?d.job:m);renderQ();toast("Scheduled ✓");
@@ -920,7 +978,7 @@ async function addMsg(){
 async function delMsg(id){
   const backup=Q.find(m=>m.id===id);Q=Q.filter(m=>m.id!==id);renderQ();
   try{
-    const r=await fetch(API+"/scheduled/"+id,{method:"DELETE"});
+    const r=await afetch(API+"/scheduled/"+id,{method:"DELETE"});
     if(!r.ok)throw new Error();
     toast("Moved to trash");await loadTrash();
   }catch(e){if(backup){Q.push(backup);renderQ();}toast("Could not delete","err");}
@@ -929,7 +987,7 @@ async function delMsg(id){
 /* ── Auto-reply ── */
 async function lAR(){
   try{
-    const c=await(await fetch(API+"/autoreply")).json();
+    const c=await(await afetch(API+"/autoreply")).json();
     document.getElementById("ar-on").checked=c.enabled;
     document.getElementById("ar-grp").checked=c.replyToGroups;
     document.getElementById("ar-tb").checked=c.schedule.enabled;
@@ -942,7 +1000,7 @@ async function lAR(){
 }
 async function sAR(){
   const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
-  try{const r=await fetch(API+"/autoreply",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});toast(r.ok?"Saved ✓":"Error",r.ok?"ok":"err");}
+  try{const r=await afetch(API+"/autoreply",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});toast(r.ok?"Saved ✓":"Error",r.ok?"ok":"err");}
   catch(e){toast("Server offline","err");}
 }
 function tTF(){document.getElementById("tf").style.display=document.getElementById("ar-tb").checked?"block":"none";}
@@ -950,6 +1008,107 @@ function tTF(){document.getElementById("tf").style.display=document.getElementBy
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSb();closeEditModal();closeConfirm();}});
+
+// ── User info ──
+const userEmail = localStorage.getItem("wabot-email") || "";
+document.getElementById("sb-email").textContent = userEmail;
+
+function doLogout(){
+  localStorage.removeItem("wabot-token");
+  localStorage.removeItem("wabot-email");
+  window.location.href = "/";
+}
+
+async function disconnectWA(){
+  if (!confirm("Disconnect your WhatsApp from this account?")) return;
+  try {
+    const r = await afetch(API+"/logout-whatsapp", {method:"POST"});
+    toast(r.ok ? "Disconnected — scan QR to reconnect" : "Error disconnecting", r.ok ? "ok" : "err");
+    if (r.ok) setTimeout(loadQR, 2000);
+  } catch(e){ toast("Server offline","err"); }
+}
+
+// ── Contact Picker ──
+let contacts = null;
+let cpOpen = null; // 's' or 'e'
+
+async function loadContacts(){
+  if (contacts) return contacts;
+  try {
+    const r = await afetch(API+"/contacts");
+    if (!r.ok) { contacts = []; return contacts; }
+    contacts = await r.json();
+  } catch(e){ contacts = []; }
+  return contacts;
+}
+
+async function toggleContactPicker(prefix){
+  const dropdown = document.getElementById(prefix+"-cp-dropdown");
+  if (dropdown.style.display !== "none") {
+    dropdown.style.display = "none"; cpOpen = null; return;
+  }
+  cpOpen = prefix;
+  dropdown.style.display = "block";
+  dropdown.innerHTML = '<div class="cp-loading">Loading contacts…</div>';
+  const list = await loadContacts();
+  renderContactDropdown(prefix, list, "");
+}
+
+function renderContactDropdown(prefix, list, query){
+  const dropdown = document.getElementById(prefix+"-cp-dropdown");
+  const q = query.toLowerCase();
+  const filtered = q ? list.filter(c =>
+    (c.name||"").toLowerCase().includes(q) || (c.number||"").includes(q)
+  ) : list;
+
+  if (!filtered.length) {
+    dropdown.innerHTML = '<div class="cp-search"><input placeholder="Search…" oninput="filterContacts(\''+ prefix +'\', this.value)"/></div><div class="cp-empty">No contacts found</div>';
+    return;
+  }
+
+  const items = filtered.slice(0, 50).map(c => {
+    const initials = (c.name||c.number||"?").slice(0,2).toUpperCase();
+    return `<div class="cp-item" onclick="selectContact('${prefix}', '${esc(c.number)}', '${esc(c.name||c.number)}')">
+      <div class="cp-avatar">${esc(initials)}</div>
+      <div><div class="cp-name">${esc(c.name||c.number)}</div><div class="cp-num">${esc(c.number)}</div></div>
+    </div>`;
+  }).join("");
+
+  dropdown.innerHTML = `<div class="cp-search"><input placeholder="Search contacts…" value="${esc(query)}" oninput="filterContacts('${prefix}', this.value)" autofocus/></div>${items}`;
+  // Re-focus search if query exists
+  const si = dropdown.querySelector(".cp-search input");
+  if (si) setTimeout(()=>si.focus(), 50);
+}
+
+function filterContacts(prefix, query){
+  loadContacts().then(list => renderContactDropdown(prefix, list, query));
+}
+
+function selectContact(prefix, number, name){
+  document.getElementById(prefix+"-to").value = number;
+  document.getElementById(prefix+"-cp-dropdown").style.display = "none";
+  cpOpen = null;
+  toast("Selected: " + name);
+}
+
+function onToInput(val){
+  // If user types, hide dropdown
+  const dropdown = document.getElementById("s-cp-dropdown");
+  if (dropdown.style.display !== "none") {
+    dropdown.style.display = "none"; cpOpen = null;
+  }
+}
+
+// Close picker when clicking outside
+document.addEventListener("click", e => {
+  if (cpOpen) {
+    const wrap = document.getElementById(cpOpen+"-to-wrap");
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById(cpOpen+"-cp-dropdown").style.display = "none";
+      cpOpen = null;
+    }
+  }
+});
 
 chkStatus();loadQ();loadTrash();lAR();
 setInterval(chkStatus,8000);

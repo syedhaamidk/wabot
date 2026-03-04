@@ -1,100 +1,196 @@
 const { Client, LocalAuth } = require("whatsapp-web.js");
-const qrcode = require("qrcode-terminal");
-const QRCode = require("qrcode");
-const express = require("express");
-const cors = require("cors");
+const qrcode    = require("qrcode-terminal");
+const QRCode    = require("qrcode");
+const express   = require("express");
+const cors      = require("cors");
 const bodyParser = require("body-parser");
-const path = require("path");
+const path      = require("path");
+const fs        = require("fs");
+
+const { signup, login, requireAuth } = require("./auth");
 const {
-  scheduleMessage,
-  editScheduledMessage,
-  cancelScheduledMessage,
-  restoreFromTrash,
-  permanentlyDelete,
-  getScheduledMessages,
-  getTrashedMessages,
-  restoreJobs
+  scheduleMessage, editScheduledMessage, cancelScheduledMessage,
+  restoreFromTrash, permanentlyDelete,
+  getScheduledMessages, getTrashedMessages,
+  restoreUserJobs
 } = require("./scheduler");
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
 
-// ── WhatsApp Client ──────────────────────────────
-let latestQR = null;
+// ── Per-user WhatsApp clients ────────────────────────────────────────────────
+// Map<userId, { client, qr, status }>
+const userSessions = new Map();
 
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    headless: true,
-    executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
-    protocolTimeout: 120000,  // 120s — prevents callFunctionOn timeout on slow connections
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--disable-extensions",
-      "--disable-background-networking",
-      "--js-flags=--max-old-space-size=256"
-    ]
+function createClient(userId) {
+  if (userSessions.has(userId)) return userSessions.get(userId);
+
+  const session = { client: null, qr: null, status: "initializing" };
+  userSessions.set(userId, session);
+
+  const client = new Client({
+    authStrategy: new LocalAuth({ clientId: userId, dataPath: path.join(__dirname, "data", userId, ".wwebjs_auth") }),
+    puppeteer: {
+      headless: true,
+      executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
+      protocolTimeout: 120000,
+      args: [
+        "--no-sandbox", "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage", "--disable-gpu",
+        "--disable-extensions", "--disable-background-networking",
+        "--js-flags=--max-old-space-size=256"
+      ]
+    }
+  });
+
+  client.on("qr", async (qr) => {
+    qrcode.generate(qr, { small: true });
+    session.qr = await QRCode.toDataURL(qr);
+    session.status = "qr";
+    console.log(`[WA:${userId}] QR ready`);
+  });
+
+  client.on("ready", () => {
+    session.qr = null;
+    session.status = "ready";
+    console.log(`[WA:${userId}] Ready`);
+    restoreUserJobs(client, userId);
+  });
+
+  client.on("disconnected", (reason) => {
+    session.status = "disconnected";
+    session.qr = null;
+    console.log(`[WA:${userId}] Disconnected: ${reason}`);
+  });
+
+  client.on("auth_failure", () => {
+    session.status = "auth_failure";
+    console.log(`[WA:${userId}] Auth failure`);
+  });
+
+  client.on("message", async (msg) => {
+    await handleAutoReply(client, userId, msg);
+  });
+
+  session.client = client;
+  client.initialize().catch(err => {
+    console.error(`[WA:${userId}] Init error:`, err.message);
+    session.status = "error";
+  });
+
+  return session;
+}
+
+function getSession(userId) {
+  return userSessions.get(userId);
+}
+
+// ── Restore existing users' sessions on startup ──────────────────────────────
+function restoreExistingSessions() {
+  const dataDir = path.join(__dirname, "data");
+  if (!fs.existsSync(dataDir)) return;
+
+  // Load users.json to find all user IDs
+  const usersFile = path.join(dataDir, "users.json");
+  if (!fs.existsSync(usersFile)) return;
+
+  try {
+    const users = JSON.parse(fs.readFileSync(usersFile, "utf8"));
+    Object.values(users).forEach(user => {
+      console.log(`[Startup] Restoring session for ${user.email}`);
+      createClient(user.id);
+    });
+  } catch(e) {
+    console.error("[Startup] Could not restore sessions:", e.message);
   }
-});
+}
 
-client.on("qr", async (qr) => {
-  qrcode.generate(qr, { small: true });
-  latestQR = await QRCode.toDataURL(qr);
-  console.log("QR ready — visit /qr in your browser to scan.");
-});
-
-client.on("ready", () => {
-  latestQR = null;
-  console.log("WhatsApp client is ready!");
-  restoreJobs(client);
-});
-
-client.on("message", async (msg) => {
-  await handleAutoReply(client, msg);
-});
-
-client.initialize();
-
-// ── Express Server ───────────────────────────────
+// ── Express ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+// ── Auth routes (public) ─────────────────────────────────────────────────────
+app.post("/api/auth/signup", (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Email and password required." });
+  const result = signup(email, password);
+  if (result.error) return res.status(400).json(result);
+  // Spin up their WhatsApp client
+  createClient(result.id);
+  res.json(result);
 });
 
-// QR code page
-app.get("/qr", (req, res) => {
-  if (!latestQR) return res.send("No QR available — already connected or wait a few seconds and refresh.");
-  res.send(`
-    <html><body style="background:#f2f2ef;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif">
-      <h2 style="margin-bottom:20px">Scan with WhatsApp</h2>
-      <img src="${latestQR}" style="width:280px;border-radius:12px"/>
-      <p style="margin-top:16px;color:#888;font-size:13px">WhatsApp → Linked Devices → Link a Device</p>
-      <p style="color:#aaa;font-size:12px;margin-top:8px">Page auto-refreshes every 20 seconds</p>
-      <script>setTimeout(()=>location.reload(), 20000)</script>
-    </body></html>
-  `);
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Email and password required." });
+  const result = login(email, password);
+  if (result.error) return res.status(401).json(result);
+  // Ensure their client is running
+  if (!userSessions.has(result.id)) createClient(result.id);
+  res.json(result);
 });
 
-// ── Status ───────────────────────────────────────
+// ── All routes below require auth ────────────────────────────────────────────
+app.use("/api", requireAuth);
+
+// ── Status / QR ──────────────────────────────────────────────────────────────
 app.get("/api/status", (req, res) => {
-  res.json({ connected: client.info ? true : false, info: client.info || null });
+  const session = getSession(req.user.id);
+  if (!session) return res.json({ connected: false, status: "no_session" });
+  res.json({
+    connected: session.status === "ready",
+    status: session.status,
+    info: session.client?.info || null
+  });
 });
 
-// ── QR data (for dashboard embed) ────────────────
 app.get("/api/qr-data", (req, res) => {
-  if (client.info) return res.json({ connected: true, qr: null });
-  if (!latestQR)   return res.json({ connected: false, qr: null });
-  res.json({ connected: false, qr: latestQR });
+  const session = getSession(req.user.id);
+  if (!session) return res.json({ connected: false, qr: null });
+  if (session.status === "ready") return res.json({ connected: true, qr: null });
+  res.json({ connected: false, qr: session.qr || null });
 });
 
-// ── Scheduled messages ───────────────────────────
+app.post("/api/logout-whatsapp", async (req, res) => {
+  const session = getSession(req.user.id);
+  if (!session || !session.client) return res.status(404).json({ error: "No session." });
+  try {
+    await session.client.logout();
+    session.status = "disconnected";
+    session.qr = null;
+    // Re-initialize so they get a fresh QR
+    setTimeout(() => createClient(req.user.id), 2000);
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Contacts ─────────────────────────────────────────────────────────────────
+app.get("/api/contacts", async (req, res) => {
+  const session = getSession(req.user.id);
+  if (!session || session.status !== "ready")
+    return res.status(503).json({ error: "WhatsApp not connected." });
+  try {
+    const contacts = await session.client.getContacts();
+    const result = contacts
+      .filter(c => c.isMyContact && !c.isGroup && c.number)
+      .map(c => ({
+        id: c.id._serialized,
+        name: c.pushname || c.name || c.number,
+        number: c.number,
+        isBlocked: c.isBlocked
+      }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Scheduled messages ────────────────────────────────────────────────────────
 app.get("/api/scheduled", (req, res) => {
-  res.json(getScheduledMessages());
+  res.json(getScheduledMessages(req.user.id));
 });
 
 app.post("/api/scheduled", (req, res) => {
@@ -104,11 +200,12 @@ app.post("/api/scheduled", (req, res) => {
   const sendTime = new Date(sendAt);
   if (isNaN(sendTime) || sendTime <= new Date())
     return res.status(400).json({ error: "sendAt must be a valid future date." });
-  const job = scheduleMessage(client, { recipient, message, sendAt: sendTime });
+  const session = getSession(req.user.id);
+  if (!session) return res.status(503).json({ error: "Session not found." });
+  const job = scheduleMessage(session.client, req.user.id, { recipient, message, sendAt: sendTime });
   res.json({ success: true, job });
 });
 
-// Edit a pending message
 app.patch("/api/scheduled/:id", (req, res) => {
   const { recipient, message, sendAt } = req.body;
   if (!recipient || !message || !sendAt)
@@ -116,49 +213,58 @@ app.patch("/api/scheduled/:id", (req, res) => {
   const sendTime = new Date(sendAt);
   if (isNaN(sendTime) || sendTime <= new Date())
     return res.status(400).json({ error: "sendAt must be a valid future date." });
-  const job = editScheduledMessage(client, req.params.id, { recipient, message, sendAt: sendTime });
-  if (!job) return res.status(404).json({ error: "Job not found or not editable (already sent/failed)." });
+  const session = getSession(req.user.id);
+  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient, message, sendAt: sendTime });
+  if (!job) return res.status(404).json({ error: "Job not found or not editable." });
   res.json({ success: true, job });
 });
 
-// Soft-delete (move to trash)
 app.delete("/api/scheduled/:id", (req, res) => {
-  const result = cancelScheduledMessage(req.params.id);
+  const result = cancelScheduledMessage(req.user.id, req.params.id);
   if (!result) return res.status(404).json({ error: "Not found." });
   res.json({ success: true });
 });
 
-// ── Trash ────────────────────────────────────────
+// ── Trash ─────────────────────────────────────────────────────────────────────
 app.get("/api/trash", (req, res) => {
-  res.json(getTrashedMessages());
+  res.json(getTrashedMessages(req.user.id));
 });
 
-// Restore from trash
 app.post("/api/trash/:id/restore", (req, res) => {
-  const job = restoreFromTrash(client, req.params.id);
+  const session = getSession(req.user.id);
+  const job = restoreFromTrash(session?.client, req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Not found in trash." });
   res.json({ success: true, job });
 });
 
-// Permanently delete from trash
 app.delete("/api/trash/:id", (req, res) => {
-  const result = permanentlyDelete(req.params.id);
+  const result = permanentlyDelete(req.user.id, req.params.id);
   if (!result) return res.status(404).json({ error: "Not found in trash." });
   res.json({ success: true });
 });
 
-// ── Auto-reply ───────────────────────────────────
+// ── Auto-reply ────────────────────────────────────────────────────────────────
 app.get("/api/autoreply", (req, res) => {
-  res.json(getAutoReplyConfig());
+  res.json(getAutoReplyConfig(req.user.id));
 });
 
 app.put("/api/autoreply", (req, res) => {
-  updateAutoReplyConfig(req.body);
-  res.json({ success: true, config: getAutoReplyConfig() });
+  updateAutoReplyConfig(req.user.id, req.body);
+  res.json({ success: true, config: getAutoReplyConfig(req.user.id) });
 });
 
-// ── Start ────────────────────────────────────────
+// ── Pages ─────────────────────────────────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
+// ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
+  restoreExistingSessions();
 });

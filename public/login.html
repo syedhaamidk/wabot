@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WABot — Sign in</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f2f2f7;--surface:#fff;--text:#000;--sub:rgba(60,60,67,.6);
+  --sep:rgba(60,60,67,.18);--green:#34c759;--blue:#007aff;--red:#ff3b30;
+  --input-bg:#f2f2f7;
+}
+[data-theme="dark"]{
+  --bg:#000;--surface:#1c1c1e;--text:#fff;--sub:rgba(235,235,245,.6);
+  --sep:rgba(84,84,88,.6);--green:#30d158;--blue:#0a84ff;--red:#ff453a;
+  --input-bg:#2c2c2e;
+}
+html,body{
+  min-height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+  transition:background .25s,color .25s;
+}
+.card{
+  background:var(--surface);border-radius:20px;
+  padding:36px 28px 28px;
+  width:100%;max-width:380px;
+  box-shadow:0 2px 20px rgba(0,0,0,.08);
+}
+.logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px}
+.logo-mark{
+  width:44px;height:44px;border-radius:12px;
+  background:var(--green);display:grid;place-items:center;
+  box-shadow:0 3px 12px rgba(52,199,89,.4);
+}
+.logo-title{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.logo-title b{font-weight:800}
+
+.tabs{display:flex;background:var(--input-bg);border-radius:10px;padding:3px;margin-bottom:24px;gap:3px}
+.tab{
+  flex:1;padding:8px;border-radius:8px;text-align:center;
+  font-size:14px;font-weight:600;cursor:pointer;
+  color:var(--sub);transition:.15s;
+}
+.tab.on{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--sub);
+  text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.field input{
+  width:100%;padding:13px 14px;
+  background:var(--input-bg);border-radius:12px;
+  border:1.5px solid transparent;
+  font-size:16px;color:var(--text);
+  transition:.15s;
+}
+.field input:focus{border-color:var(--blue);outline:none;background:var(--surface)}
+.field input::placeholder{color:var(--sub)}
+
+.btn{
+  width:100%;padding:14px;border-radius:12px;
+  font-size:16px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:.15s;cursor:pointer;border:none;margin-top:6px;
+  font-family:inherit;
+}
+.btn:active{opacity:.75;transform:scale(.98)}
+.btn-primary{background:var(--green);color:#fff;box-shadow:0 2px 12px rgba(52,199,89,.35)}
+.btn-primary:hover{box-shadow:0 4px 20px rgba(52,199,89,.45)}
+
+.err{
+  background:rgba(255,59,48,.1);color:var(--red);
+  border-radius:10px;padding:10px 14px;
+  font-size:14px;font-weight:500;margin-bottom:14px;
+  display:none;
+}
+.err.show{display:block}
+
+.spinner{
+  width:18px;height:18px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;
+  animation:spin .7s linear infinite;display:none;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading .spinner{display:block}
+.loading .btn-txt{display:none}
+
+.theme-btn{
+  position:fixed;top:16px;right:16px;
+  width:36px;height:36px;border-radius:50%;
+  background:var(--surface);border:none;cursor:pointer;
+  font-size:18px;display:grid;place-items:center;
+  box-shadow:0 1px 6px rgba(0,0,0,.1);
+}
+</style>
+</head>
+<body>
+<button class="theme-btn" onclick="toggleTheme()" id="theme-btn">🌙</button>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="logo-title">WA<b>Bot</b></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" id="tab-login" onclick="switchTab('login')">Sign in</div>
+    <div class="tab" id="tab-signup" onclick="switchTab('signup')">Create account</div>
+  </div>
+
+  <div id="err" class="err"></div>
+
+  <!-- Login form -->
+  <div id="form-login">
+    <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn btn-primary" id="btn-login" onclick="doLogin()">
+      <div class="spinner"></div>
+      <span class="btn-txt">Sign in</span>
+    </button>
+  </div>
+
+  <!-- Signup form -->
+  <div id="form-signup" style="display:none">
+    <div class="field"><label>Email</label><input type="email" id="s-email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="field"><label>Password</label><input type="password" id="s-pass" placeholder="Min. 6 characters" autocomplete="new-password"/></div>
+    <button class="btn btn-primary" id="btn-signup" onclick="doSignup()">
+      <div class="spinner"></div>
+      <span class="btn-txt">Create account</span>
+    </button>
+  </div>
+</div>
+
+<script>
+// Theme
+let dark = localStorage.getItem("wabot-theme") === "dark" ||
+           (!localStorage.getItem("wabot-theme") && matchMedia("(prefers-color-scheme:dark)").matches);
+function applyTheme(){
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  document.getElementById("theme-btn").textContent = dark ? "☀️" : "🌙";
+  localStorage.setItem("wabot-theme", dark ? "dark" : "light");
+}
+function toggleTheme(){ dark = !dark; applyTheme(); }
+applyTheme();
+
+// If already logged in, go to dashboard
+if (localStorage.getItem("wabot-token")) {
+  window.location.href = "/dashboard";
+}
+
+function switchTab(t){
+  document.getElementById("tab-login").classList.toggle("on", t === "login");
+  document.getElementById("tab-signup").classList.toggle("on", t === "signup");
+  document.getElementById("form-login").style.display  = t === "login"  ? "block" : "none";
+  document.getElementById("form-signup").style.display = t === "signup" ? "block" : "none";
+  document.getElementById("err").classList.remove("show");
+}
+
+function showErr(msg){ const e = document.getElementById("err"); e.textContent = msg; e.classList.add("show"); }
+function hideErr(){ document.getElementById("err").classList.remove("show"); }
+
+function setLoading(btn, on){
+  btn.classList.toggle("loading", on);
+  btn.disabled = on;
+}
+
+async function doLogin(){
+  const email = document.getElementById("l-email").value.trim();
+  const pass  = document.getElementById("l-pass").value;
+  if (!email || !pass) return showErr("Please fill in both fields.");
+  hideErr();
+  const btn = document.getElementById("btn-login");
+  setLoading(btn, true);
+  try {
+    const r = await fetch("/api/auth/login", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ email, password: pass })
+    });
+    const d = await r.json();
+    if (!r.ok) return showErr(d.error || "Login failed.");
+    localStorage.setItem("wabot-token", d.token);
+    localStorage.setItem("wabot-email", d.email);
+    window.location.href = "/dashboard";
+  } catch(e){ showErr("Server offline. Try again."); }
+  finally { setLoading(btn, false); }
+}
+
+async function doSignup(){
+  const email = document.getElementById("s-email").value.trim();
+  const pass  = document.getElementById("s-pass").value;
+  if (!email || !pass) return showErr("Please fill in both fields.");
+  hideErr();
+  const btn = document.getElementById("btn-signup");
+  setLoading(btn, true);
+  try {
+    const r = await fetch("/api/auth/signup", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ email, password: pass })
+    });
+    const d = await r.json();
+    if (!r.ok) return showErr(d.error || "Signup failed.");
+    localStorage.setItem("wabot-token", d.token);
+    localStorage.setItem("wabot-email", d.email);
+    window.location.href = "/dashboard";
+  } catch(e){ showErr("Server offline. Try again."); }
+  finally { setLoading(btn, false); }
+}
+
+// Enter key support
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const activeForm = document.getElementById("form-login").style.display !== "none" ? "login" : "signup";
+  if (activeForm === "login") doLogin();
+  else doSignup();
+});
+</script>
+</body>
+</html>
