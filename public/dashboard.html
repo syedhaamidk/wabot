@@ -1007,9 +1007,9 @@ async function chkStatus(){
     const on = d.connected;
     document.getElementById("sb-dot").className="conn-dot"+(on?" on":"");
     document.getElementById("sb-lbl").textContent=on?"Connected":"Disconnected";
-    document.getElementById("sb-lbl").className="conn-label"+(on?" on":"");
+    document.getElementById("sb-lbl").className="conn-text"+(on?" on":"");
     document.getElementById("mob-lbl").textContent=on?"Live":"Offline";
-    document.getElementById("mob-pill").className="pill"+(on?" on":"");
+    document.getElementById("mob-pill").className="status-chip"+(on?" on":"");
     if(on){
       document.getElementById("qr-tag").textContent="Connected";
       document.getElementById("qr-tag").className="qr-status-tag qr-connected";
@@ -1022,10 +1022,10 @@ async function chkStatus(){
 }
 function setSbOffline(){
   document.getElementById("sb-dot").className="conn-dot";
-  document.getElementById("sb-lbl").textContent="Offline";
-  document.getElementById("sb-lbl").className="conn-label";
+  document.getElementById("sb-lbl").textContent="Disconnected";
+  document.getElementById("sb-lbl").className="conn-text";
   document.getElementById("mob-lbl").textContent="Offline";
-  document.getElementById("mob-pill").className="pill";
+  document.getElementById("mob-pill").className="status-chip";
 }
 
 /* ── QR loader ── */
