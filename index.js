@@ -7,7 +7,7 @@ const bodyParser = require("body-parser");
 const path      = require("path");
 const fs        = require("fs");
 
-const { signup, login, requireAuth } = require("./auth");
+const { signup, login, requireAuth, googleAuthURL, googleCallback } = require("./auth");
 
 // ── Ensure data directory exists on startup ──────────────────────────────────
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
@@ -144,6 +144,31 @@ app.post("/api/auth/login", (req, res) => {
   if (result.error) return res.status(401).json(result);
   if (!userSessions.has(result.id)) createClient(result.id);
   res.json(result);
+});
+
+// ── Google OAuth (public) ────────────────────────────────────────────────────
+app.get("/api/auth/google", (req, res) => {
+  res.redirect(googleAuthURL());
+});
+
+app.get("/api/auth/google/callback", async (req, res) => {
+  try {
+    const { token, email } = await googleCallback(req.query.code);
+    if (!userSessions.has(token)) {
+      // load user id from token payload to start WA session
+      const { verifyToken } = require("./auth");
+      const payload = verifyToken(token);
+      if (payload && !userSessions.has(payload.id)) createClient(payload.id);
+    }
+    res.send(`<!DOCTYPE html><html><head><script>
+      localStorage.setItem("wabot-token","${token}");
+      localStorage.setItem("wabot-email","${email}");
+      window.location.href="/dashboard";
+    </script></head><body></body></html>`);
+  } catch(e) {
+    console.error("[Google OAuth]", e.message);
+    res.redirect("/?error=" + encodeURIComponent(e.message));
+  }
 });
 
 // ── All routes below require auth ────────────────────────────────────────────
