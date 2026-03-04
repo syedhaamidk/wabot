@@ -129,18 +129,18 @@ function sendWithRetry(client, userId, job, attempts, delayMs) {
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
-function scheduleMessage(client, userId, { recipient, message, sendAt }) {
+function scheduleMessage(client, userId, { recipient, recipientName, message, sendAt }) {
   const id = crypto.randomUUID();
   const sendTime = new Date(sendAt);
   const delay = sendTime.getTime() - Date.now();
-  const timeout = setTimeout(() => sendJob(client, userId, { id, recipient, message, sendAt: sendTime.toISOString() }), delay);
-  const job = { id, recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
+  const timeout = setTimeout(() => sendJob(client, userId, { id, recipient, recipientName, message, sendAt: sendTime.toISOString() }), delay);
+  const job = { id, recipient, recipientName: recipientName || recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
   getScheduled(userId).set(id, { ...job, timeout });
   saveToFile(userId);
   return job;
 }
 
-function editScheduledMessage(client, userId, id, { recipient, message, sendAt }) {
+function editScheduledMessage(client, userId, id, { recipient, recipientName, message, sendAt }) {
   const scheduled = getScheduled(userId);
   const existing = scheduled.get(id);
   if (!existing || existing.status !== "pending") return null;
@@ -148,8 +148,8 @@ function editScheduledMessage(client, userId, id, { recipient, message, sendAt }
   const sendTime = new Date(sendAt);
   const delay = sendTime.getTime() - Date.now();
   if (delay <= 0) return null;
-  const timeout = setTimeout(() => sendJob(client, userId, { id, recipient, message, sendAt: sendTime.toISOString() }), delay);
-  const updated = { ...existing, recipient, message, sendAt: sendTime.toISOString(), timeout, editedAt: new Date().toISOString() };
+  const timeout = setTimeout(() => sendJob(client, userId, { id, recipient, recipientName, message, sendAt: sendTime.toISOString() }), delay);
+  const updated = { ...existing, recipient, recipientName: recipientName || existing.recipientName || recipient, message, sendAt: sendTime.toISOString(), timeout, editedAt: new Date().toISOString() };
   scheduled.set(id, updated);
   saveToFile(userId);
   const { timeout: _t, ...job } = updated;

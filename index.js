@@ -173,15 +173,22 @@ app.get("/api/contacts", async (req, res) => {
     return res.status(503).json({ error: "WhatsApp not connected." });
   try {
     const contacts = await session.client.getContacts();
-    const result = contacts
-      .filter(c => c.isMyContact && !c.isGroup && c.number)
-      .map(c => ({
-        id: c.id._serialized,
-        name: c.pushname || c.name || c.number,
-        number: c.number,
-        isBlocked: c.isBlocked
-      }))
-      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    // Deduplicate by normalized number, prefer entry with real name
+    const seen = new Map();
+    contacts
+      .filter(c => !c.isGroup && c.number)
+      .forEach(c => {
+        const num = c.number.replace(/\D/g, "");
+        if (!num) return;
+        const name = c.pushname || c.name || "";
+        const existing = seen.get(num);
+        const hasRealName = name && name !== num && name.length > 1;
+        if (!existing || hasRealName) {
+          seen.set(num, { id: c.id._serialized, name: hasRealName ? name : "", number: num });
+        }
+      });
+    const result = Array.from(seen.values())
+      .sort((a, b) => (a.name || a.number).localeCompare(b.name || b.number));
     res.json(result);
   } catch(e) {
     res.status(500).json({ error: e.message });
@@ -202,7 +209,8 @@ app.post("/api/scheduled", (req, res) => {
     return res.status(400).json({ error: "sendAt must be a valid future date." });
   const session = getSession(req.user.id);
   if (!session) return res.status(503).json({ error: "Session not found." });
-  const job = scheduleMessage(session.client, req.user.id, { recipient, message, sendAt: sendTime });
+  const { recipientName } = req.body;
+  const job = scheduleMessage(session.client, req.user.id, { recipient, recipientName, message, sendAt: sendTime });
   res.json({ success: true, job });
 });
 
@@ -214,7 +222,8 @@ app.patch("/api/scheduled/:id", (req, res) => {
   if (isNaN(sendTime) || sendTime <= new Date())
     return res.status(400).json({ error: "sendAt must be a valid future date." });
   const session = getSession(req.user.id);
-  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient, message, sendAt: sendTime });
+  const { recipientName: rn } = req.body;
+  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient, recipientName: rn, message, sendAt: sendTime });
   if (!job) return res.status(404).json({ error: "Job not found or not editable." });
   res.json({ success: true, job });
 });
