@@ -948,7 +948,7 @@ function promptPermDelete(id){ppId=id;document.getElementById("confirm-modal").c
 function closeConfirm(e){if(e&&e.target!==document.getElementById("confirm-modal"))return;document.getElementById("confirm-modal").classList.remove("open");document.body.style.overflow="";ppId=null;}
 async function confirmPermanentDelete(){
   if(!ppId)return;
-  try{const r=await fetch(API+"/trash/"+ppId,{method:"DELETE"});if(!r.ok)return toast("Could not delete","err");toast("Deleted permanently");await loadTrash();}
+  try{const r=await afetch(API+"/trash/"+ppId,{method:"DELETE"});if(!r.ok)return toast("Could not delete","err");toast("Deleted permanently");await loadTrash();}
   catch(e){toast("Server offline","err");}
   closeConfirm();
 }
