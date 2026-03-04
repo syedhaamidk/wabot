@@ -771,9 +771,19 @@ textarea{resize:none}
 const TOKEN = localStorage.getItem("wabot-token");
 if (!TOKEN) window.location.href = "/";
 const API = "/api";
-const H = { "Content-Type": "application/json", "Authorization": "Bearer " + TOKEN };
-function afetch(url, opts = {}) {
-  return fetch(url, { ...opts, headers: { ...H, ...(opts.headers||{}) } });
+async function afetch(url, opts = {}) {
+  // Always use auth header; for requests with body use our Content-Type, else let it be
+  const headers = { "Authorization": "Bearer " + TOKEN };
+  if (opts.body) headers["Content-Type"] = "application/json";
+  const res = await fetch(url, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  if (res.status === 401) {
+    // Token expired or invalid — clear and redirect to login
+    localStorage.removeItem("wabot-token");
+    localStorage.removeItem("wabot-email");
+    window.location.href = "/";
+    return res;
+  }
+  return res;
 }
 let Q=[],TRASH=[];
 
@@ -817,13 +827,15 @@ function toast(m,t="ok"){const e=document.getElementById("tst");e.textContent=m;
 /* ── Status ── */
 async function chkStatus(){
   try{
-    const d=await(await afetch(API+"/status")).json();const on=d.connected;
+    const r = await afetch(API+"/status");
+    if (!r.ok) { setSbOffline(); return; }
+    const d = await r.json();
+    const on = d.connected;
     document.getElementById("sb-dot").className="conn-dot"+(on?" on":"");
     document.getElementById("sb-lbl").textContent=on?"Connected":"Disconnected";
     document.getElementById("sb-lbl").className="conn-label"+(on?" on":"");
     document.getElementById("mob-lbl").textContent=on?"Live":"Offline";
     document.getElementById("mob-pill").className="pill"+(on?" on":"");
-    // Also update QR section
     if(on){
       document.getElementById("qr-tag").textContent="Connected";
       document.getElementById("qr-tag").className="qr-status-tag qr-connected";
@@ -832,7 +844,14 @@ async function chkStatus(){
       document.getElementById("qr-placeholder-txt").textContent="✓ Connected";
       document.getElementById("qr-img").style.display="none";
     }
-  }catch(e){document.getElementById("sb-lbl").textContent="Offline";}
+  }catch(e){ setSbOffline(); }
+}
+function setSbOffline(){
+  document.getElementById("sb-dot").className="conn-dot";
+  document.getElementById("sb-lbl").textContent="Offline";
+  document.getElementById("sb-lbl").className="conn-label";
+  document.getElementById("mob-lbl").textContent="Offline";
+  document.getElementById("mob-pill").className="pill";
 }
 
 /* ── QR loader ── */
@@ -1020,7 +1039,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSb();closeEdit
 
 // ── User info ──
 const userEmail = localStorage.getItem("wabot-email") || "";
-document.getElementById("sb-email").textContent = userEmail;
+document.getElementById("sb-email").textContent = userEmail || "Account";
 
 function doLogout(){
   localStorage.removeItem("wabot-token");
