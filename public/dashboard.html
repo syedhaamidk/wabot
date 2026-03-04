@@ -88,123 +88,161 @@ html,body{
 .shell{position:relative;z-index:1;display:flex;min-height:100vh}
 
 /* ─── SIDEBAR ─── */
-:root{--sb-collapsed:58px}
+:root{--sb-collapsed:64px}
 
 .sb{
   width:var(--sb-collapsed);flex-shrink:0;
-  background:rgba(5,8,15,.75);
+  background:rgba(5,8,15,.82);
   border-right:1px solid var(--sep);
   display:flex;flex-direction:column;
   position:fixed;inset:0 auto 0 0;z-index:40;
   backdrop-filter:blur(32px) saturate(160%);
   -webkit-backdrop-filter:blur(32px) saturate(160%);
-  transition:width .28s cubic-bezier(.4,0,.2,1),transform .32s cubic-bezier(.4,0,.2,1);
+  transition:width .3s cubic-bezier(.4,0,.2,1),transform .32s cubic-bezier(.4,0,.2,1);
   overflow:hidden;
-  overflow-y:auto;
 }
-.sb:hover{width:var(--sb-w)}
-[data-theme="light"] .sb{background:rgba(240,242,248,.82)}
+.sb.sb-expanded{width:var(--sb-w)}
+[data-theme="light"] .sb{background:rgba(240,242,248,.88)}
 
-/* collapsed: hide text labels */
-.sb:not(:hover) .sb-wordmark,
-.sb:not(:hover) .sb-group-label,
-.sb:not(:hover) .sb-item span:not(.sb-icon):not(.sb-pip),
-.sb:not(:hover) .conn-text,
-.sb:not(:hover) .theme-toggle-lbl,
-.sb:not(:hover) .sb-email,
-.sb:not(:hover) .sb-signout{
+/* ── labels: hidden when collapsed ── */
+.sb-wordmark,
+.sb-group-label,
+.sb-item-label,
+.conn-text,
+.theme-toggle-lbl,
+.sb-email,
+.sb-signout{
   opacity:0;
+  width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  transition:opacity .15s, width 0s .15s;
   pointer-events:none;
-  transition:opacity .15s;
 }
-.sb:hover .sb-wordmark,
-.sb:hover .sb-group-label,
-.sb:hover .sb-item span:not(.sb-icon):not(.sb-pip),
-.sb:hover .conn-text,
-.sb:hover .theme-toggle-lbl,
-.sb:hover .sb-email,
-.sb:hover .sb-signout{
+.sb-expanded .sb-wordmark,
+.sb-expanded .sb-group-label,
+.sb-expanded .sb-item-label,
+.sb-expanded .conn-text,
+.sb-expanded .theme-toggle-lbl,
+.sb-expanded .sb-email,
+.sb-expanded .sb-signout{
   opacity:1;
+  width:auto;
   pointer-events:auto;
-  transition:opacity .2s .08s;
+  transition:opacity .2s .1s, width 0s 0s;
 }
 
-/* main shifts by collapsed width, not full sidebar width */
 .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:39;opacity:0;transition:opacity .3s;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 .sb-overlay.open{opacity:1}
 
-.sb-header{padding:20px 14px 14px;display:flex;align-items:center;justify-content:space-between;min-width:var(--sb-w)}
-.sb-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+/* ── header ── */
+.sb-header{
+  padding:14px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;
+  border-bottom:1px solid var(--sep);
+  flex-shrink:0;
+  min-height:56px;
+}
+.sb-logo{display:flex;align-items:center;gap:9px;text-decoration:none;overflow:hidden}
 .sb-mark{
-  width:30px;height:30px;border-radius:8px;
+  width:32px;height:32px;border-radius:9px;
   background:linear-gradient(135deg,var(--em),var(--em2));
   display:grid;place-items:center;flex-shrink:0;
   box-shadow:0 0 18px var(--em-glow),0 2px 8px rgba(0,0,0,.3);
-  transition:box-shadow .2s;
 }
-.sb:hover .sb-mark{box-shadow:0 0 24px var(--em-glow),0 2px 10px rgba(0,0,0,.4)}
-.sb-wordmark{font-size:15px;font-weight:700;letter-spacing:-.5px;color:var(--text);white-space:nowrap}
+.sb-wordmark{font-size:15px;font-weight:700;letter-spacing:-.5px;color:var(--text)}
 .sb-wordmark b{color:var(--em)}
-.sb-close{display:none;width:26px;height:26px;border-radius:50%;background:var(--g);border:1px solid var(--gb);place-items:center;font-size:11px;color:var(--sub);cursor:pointer;transition:.15s}
+
+/* collapse toggle button */
+.sb-toggle{
+  width:28px;height:28px;border-radius:8px;
+  background:var(--g);border:1px solid var(--gb);
+  display:grid;place-items:center;
+  color:var(--sub);cursor:pointer;transition:all .15s;
+  flex-shrink:0;
+}
+.sb-toggle:hover{background:var(--gh);color:var(--text)}
+.sb-toggle svg{transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.sb-expanded .sb-toggle svg{transform:rotate(180deg)}
+
+.sb-close{display:none;width:26px;height:26px;border-radius:50%;background:var(--g);border:1px solid var(--gb);place-items:center;color:var(--sub);cursor:pointer;transition:.15s}
 .sb-close:hover{color:var(--text);background:var(--gh)}
 
-.sb-nav{flex:1;padding:2px 10px 8px;min-width:var(--sb-w)}
-.sb-group-label{font-size:9.5px;font-weight:700;color:var(--sub);padding:16px 8px 5px;text-transform:uppercase;letter-spacing:1.4px;white-space:nowrap}
+/* ── nav ── */
+.sb-nav{flex:1;padding:8px 10px;overflow-y:auto;overflow-x:hidden}
+.sb-group-label{
+  font-size:9px;font-weight:700;color:var(--sub);
+  padding:12px 6px 4px;text-transform:uppercase;letter-spacing:1.4px;
+  white-space:nowrap;display:block;
+}
 .sb-item{
-  display:flex;align-items:center;gap:9px;
-  padding:8px 10px;border-radius:9px;
+  display:flex;align-items:center;gap:10px;
+  padding:9px 8px;border-radius:9px;
   font-size:13.5px;font-weight:400;color:var(--text2);
-  cursor:pointer;transition:all .14s;min-height:38px;
+  cursor:pointer;transition:all .14s;min-height:40px;
   border:1px solid transparent;position:relative;
-  white-space:nowrap;
+  overflow:hidden;
 }
 .sb-item:hover{background:var(--g);color:var(--text)}
-.sb-item.on{
-  background:var(--em-bg);color:var(--em);font-weight:600;
-  border-color:var(--em-bd);
-}
+.sb-item.on{background:var(--em-bg);color:var(--em);font-weight:600;border-color:var(--em-bd)}
 .sb-item.on .sb-pip{opacity:1}
 .sb-pip{
-  position:absolute;left:-1px;top:25%;bottom:25%;
-  width:2.5px;border-radius:0 2px 2px 0;
+  position:absolute;left:-1px;top:20%;bottom:20%;
+  width:3px;border-radius:0 3px 3px 0;
   background:var(--em);box-shadow:0 0 8px var(--em);
   opacity:0;transition:opacity .14s;
 }
-.sb-icon{width:17px;text-align:center;font-size:14px;flex-shrink:0;display:grid;place-items:center}
+.sb-icon{
+  width:20px;height:20px;
+  display:grid;place-items:center;
+  flex-shrink:0;color:inherit;
+}
+.sb-item-label{font-size:13.5px;white-space:nowrap}
 
-/* tooltip on collapsed items */
-.sb:not(:hover) .sb-item{justify-content:center;padding:8px}
-.sb:not(:hover) .sb-icon{width:auto}
+/* collapsed: center the icons */
+.sb:not(.sb-expanded) .sb-item{justify-content:center;padding:9px 0}
+.sb:not(.sb-expanded) .sb-nav{padding:8px 10px}
+.sb:not(.sb-expanded) .sb-header{justify-content:center;padding:14px 0}
+.sb:not(.sb-expanded) .sb-toggle{display:none}
 
-.sb-foot{padding:10px 10px 14px;border-top:1px solid var(--sep);min-width:var(--sb-w)}
+/* ── footer ── */
+.sb-foot{padding:10px 10px 14px;border-top:1px solid var(--sep);flex-shrink:0}
 .sb-user{
   display:flex;align-items:center;gap:7px;
   padding:8px 10px;border-radius:9px;
   background:var(--g);border:1px solid var(--gb);margin-bottom:7px;
-  white-space:nowrap;overflow:hidden;
+  overflow:hidden;
 }
-.sb-email{font-size:11px;color:var(--sub);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-email{font-size:11px;color:var(--sub);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .sb-signout{font-size:11px;font-weight:600;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;flex-shrink:0;padding:1px 3px;opacity:.8;transition:.15s;white-space:nowrap}
 .sb-signout:hover{opacity:1}
 .conn-pill{
   display:flex;align-items:center;gap:7px;
-  padding:7px 10px;border-radius:9px;
+  padding:8px 10px;border-radius:9px;
   background:var(--g);border:1px solid var(--gb);margin-bottom:7px;
-  white-space:nowrap;overflow:hidden;
+  overflow:hidden;
+  cursor:default;
 }
-.conn-dot{width:6px;height:6px;border-radius:50%;background:var(--sub);flex-shrink:0;transition:.4s}
+/* collapsed footer: center dots */
+.sb:not(.sb-expanded) .sb-foot{padding:10px 6px 14px}
+.sb:not(.sb-expanded) .sb-user{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
+.sb:not(.sb-expanded) .conn-pill{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
+.sb:not(.sb-expanded) .theme-toggle{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
+
+.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--sub);flex-shrink:0;transition:.4s}
 .conn-dot.on{background:var(--em);box-shadow:0 0 7px var(--em);animation:ping 2.2s infinite}
 @keyframes ping{0%,100%{box-shadow:0 0 0 0 rgba(26,237,130,.5)}60%{box-shadow:0 0 0 4px rgba(26,237,130,0)}}
-.conn-text{font-size:11.5px;font-weight:500;color:var(--sub);transition:color .3s;white-space:nowrap}
+.conn-text{font-size:11.5px;font-weight:500;color:var(--sub);white-space:nowrap;min-width:0}
 .conn-text.on{color:var(--em)}
 .theme-toggle{
   display:flex;align-items:center;justify-content:space-between;
   padding:7px 10px;border-radius:9px;background:var(--g);border:1px solid var(--gb);cursor:pointer;transition:.14s;
-  white-space:nowrap;overflow:hidden;
+  overflow:hidden;
 }
 .theme-toggle:hover{background:var(--gh)}
-.theme-toggle-lbl{font-size:11.5px;font-weight:500;color:var(--text2);white-space:nowrap}
-.theme-toggle-ic{font-size:15px;flex-shrink:0;display:grid;place-items:center}
+.theme-toggle-lbl{font-size:11.5px;font-weight:500;color:var(--text2);white-space:nowrap;min-width:0}
+.theme-toggle-ic{flex-shrink:0;display:grid;place-items:center}
 
 /* ─── TOPBAR (mobile) ─── */
 .topbar{
@@ -242,7 +280,7 @@ html,body{
 .bn-ic{font-size:19px;line-height:1.2}
 
 /* ─── MAIN ─── */
-.main{flex:1;margin-left:var(--sb-collapsed);min-width:0;display:flex;flex-direction:column;transition:margin-left .28s cubic-bezier(.4,0,.2,1)}
+.main{flex:1;margin-left:var(--sb-collapsed);min-width:0;display:flex;flex-direction:column;transition:margin-left .3s cubic-bezier(.4,0,.2,1)}
 .page-wrap{width:100%;padding:clamp(18px,3vw,36px) clamp(14px,3vw,36px) 60px;max-width:1040px}
 
 /* ─── PAGE ANIM ─── */
@@ -595,7 +633,7 @@ html,body{
 <aside class="sb" id="sb">
   <div class="sb-header">
     <div class="sb-logo">
-      <div class="sb-mark">
+      <div class="sb-mark" onclick="if(!sbExpanded)toggleSb()" style="cursor:pointer">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
           <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z" stroke="#000" stroke-width="2.5" stroke-linejoin="round"/>
           <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
@@ -603,27 +641,30 @@ html,body{
       </div>
       <div class="sb-wordmark">WA<b>Bot</b></div>
     </div>
-    <button class="sb-close" onclick="closeSb()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <button class="sb-toggle" onclick="toggleSb()" title="Collapse sidebar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="sb-close" onclick="closeSb()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 
   <nav class="sb-nav">
     <div class="sb-group-label">Main</div>
     <div class="sb-item on" onclick="go('schedule')" id="sbi-schedule">
       <div class="sb-pip"></div>
-      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div><span>Schedule</span>
+      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div><span class="sb-item-label">Schedule</span>
     </div>
     <div class="sb-item" onclick="go('autoreply')" id="sbi-autoreply">
       <div class="sb-pip"></div>
-      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg></div><span>Auto-Reply</span>
+      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg></div><span class="sb-item-label">Auto-Reply</span>
     </div>
     <div class="sb-group-label">Other</div>
     <div class="sb-item" onclick="go('trash')" id="sbi-trash">
       <div class="sb-pip"></div>
-      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></div><span>Trash</span>
+      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></div><span class="sb-item-label">Trash</span>
     </div>
     <div class="sb-item" onclick="go('setup')" id="sbi-setup">
       <div class="sb-pip"></div>
-      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div><span>Setup</span>
+      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div><span class="sb-item-label">Setup</span>
     </div>
   </nav>
 
@@ -902,7 +943,27 @@ function applyTheme(){
 function toggleTheme(){dark=!dark;applyTheme();}
 applyTheme();
 
-/* ── Drawer ── */
+/* ── Sidebar toggle ── */
+let sbExpanded = localStorage.getItem("wabot-sb") !== "collapsed";
+function applySb(){
+  const sb = document.getElementById("sb");
+  const main = document.querySelector(".main");
+  if(sbExpanded){
+    sb.classList.add("sb-expanded");
+    main.style.marginLeft = "var(--sb-w)";
+  } else {
+    sb.classList.remove("sb-expanded");
+    main.style.marginLeft = "var(--sb-collapsed)";
+  }
+}
+function toggleSb(){
+  sbExpanded = !sbExpanded;
+  localStorage.setItem("wabot-sb", sbExpanded ? "expanded" : "collapsed");
+  applySb();
+}
+applySb();
+
+/* ── Drawer (mobile) ── */
 function openSb(){document.getElementById("sb").classList.add("open");document.getElementById("overlay").classList.add("open");document.body.style.overflow="hidden";}
 function closeSb(){document.getElementById("sb").classList.remove("open");document.getElementById("overlay").classList.remove("open");document.body.style.overflow="";}
 
