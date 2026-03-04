@@ -636,7 +636,7 @@ html,body{
             <div class="f cp-wrap" id="s-to-wrap">
               <label>To</label>
               <div class="cp-row">
-                <input id="s-to" type="tel" placeholder="919876543210 or search…" autocomplete="off" oninput="onToInput(this.value)" style="flex:1"/>
+                <input id="s-to" type="tel" dir="ltr" placeholder="919876543210 or search…" autocomplete="off" oninput="onToInput(this.value)" style="flex:1"/>
                 <button class="cp-btn" id="s-cp-btn" onclick="toggleContactPicker('s')" type="button">👤 Contacts</button>
               </div>
               <input type="hidden" id="s-to-name" value=""/>
@@ -776,7 +776,7 @@ html,body{
       <div class="f cp-wrap" id="e-to-wrap">
         <label>To</label>
         <div class="cp-row">
-          <input id="e-to" type="tel" placeholder="919876543210 or search…" autocomplete="off" style="flex:1"/>
+          <input id="e-to" type="tel" dir="ltr" placeholder="919876543210 or search…" autocomplete="off" style="flex:1"/>
           <button class="cp-btn" id="e-cp-btn" onclick="toggleContactPicker('e')" type="button">👤 Contacts</button>
         </div>
         <input type="hidden" id="e-to-name" value=""/>
@@ -1186,7 +1186,7 @@ function renderContactDropdown(prefix, list, query){
     ? list.filter(c => getDisplayName(c).toLowerCase().includes(q) || (c.number||"").includes(q))
     : list;
 
-  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" value="${esc(query||"")}"/></div>`;
+  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" dir="ltr" value="${esc(query||"")}"/></div>`;
 
   const bodyHtml = !filtered.length
     ? `<div class="cp-empty">${q ? 'No results for "' + esc(q) + '"' : "No contacts"}</div>`
