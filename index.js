@@ -25,12 +25,15 @@ const client = new Client({
   puppeteer: {
     headless: true,
     executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
-    protocolTimeout: 60000,   // 60 s — prevents "callFunctionOn timed out" on slow sends
+    protocolTimeout: 120000,  // 120s — prevents callFunctionOn timeout on slow connections
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
-      "--disable-gpu"
+      "--disable-gpu",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--js-flags=--max-old-space-size=256"
     ]
   }
 });

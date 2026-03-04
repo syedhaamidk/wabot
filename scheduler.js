@@ -29,6 +29,21 @@ function loadTrash() {
   }
 }
 
+// ── Wait until WhatsApp client is fully ready ────────────────────────────────
+function waitForClient(client, maxWaitMs = 30000) {
+  return new Promise((resolve, reject) => {
+    if (client.info) return resolve();
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (client.info) { clearInterval(interval); return resolve(); }
+      if (Date.now() - start >= maxWaitMs) {
+        clearInterval(interval);
+        reject(new Error("WhatsApp client not ready after " + maxWaitMs / 1000 + "s"));
+      }
+    }, 1000);
+  });
+}
+
 // ── Core send logic ──────────────────────────────────────────────────────────
 async function sendJob(client, job) {
   const chatId = job.recipient.includes("@")
@@ -36,6 +51,8 @@ async function sendJob(client, job) {
     : job.recipient.replace(/[^0-9]/g, "") + "@c.us";
 
   try {
+    // Wait for WA session to be alive before sending
+    await waitForClient(client, 30000);
     await client.sendMessage(chatId, job.message);
     console.log("[Scheduler] Sent to " + job.recipient);
     const existing = scheduledMessages.get(job.id);
@@ -48,7 +65,8 @@ async function sendJob(client, job) {
     const isTimeout = err.message && (
       err.message.includes("timed out") ||
       err.message.includes("protocolTimeout") ||
-      err.message.includes("Target closed")
+      err.message.includes("Target closed") ||
+      err.message.includes("not ready")
     );
     console.error(`[Scheduler] Failed to send to ${job.recipient} (${isTimeout ? "timeout" : "error"}): ${err.message}`);
     const existing = scheduledMessages.get(job.id);
@@ -60,24 +78,23 @@ async function sendJob(client, job) {
   }
 }
 
-// ── Retry helper — waits `delayMs`, tries sendJob, retries up to `attempts` times
-// Uses exponential backoff: 10s → 30s → 90s before giving up
+// ── Retry helper — exponential backoff: 15s → 45s → 135s ────────────────────
 function sendWithRetry(client, job, attempts, delayMs) {
   const timeout = setTimeout(async () => {
-    // Reset to pending so status reflects the retry attempt
+    // Reset to pending so UI shows it's being retried
     const existing = scheduledMessages.get(job.id);
     if (existing) {
       scheduledMessages.set(job.id, { ...existing, status: "pending", timeout: null });
+      saveToFile();
     }
 
     const ok = await sendJob(client, job);
     if (!ok && attempts > 1) {
       const nextDelay = delayMs * 3;
-      console.log(`[Scheduler] Retry ${4 - attempts + 1} for ${job.recipient} in ${nextDelay / 1000}s`);
-      // Reset failed status so the next retry can proceed
+      console.log(`[Scheduler] Retry ${4 - attempts + 1}/3 for ${job.recipient} in ${nextDelay / 1000}s`);
       const current = scheduledMessages.get(job.id);
       if (current) {
-        scheduledMessages.set(job.id, { ...current, status: "pending", timeout: null });
+        scheduledMessages.set(job.id, { ...current, status: "pending" });
         saveToFile();
       }
       sendWithRetry(client, job, attempts - 1, nextDelay);
@@ -155,7 +172,7 @@ function restoreFromTrash(client, id) {
     } else {
       // Past-due restore — retry with backoff
       scheduledMessages.set(job.id, { ...job, timeout: null });
-      sendWithRetry(client, job, 3, 3000);
+      sendWithRetry(client, job, 3, 15000);
     }
   } else {
     scheduledMessages.set(job.id, { ...job, timeout: null });
@@ -216,11 +233,11 @@ function restoreJobs(client) {
       console.log("[Scheduler] Restored future job for " + job.recipient + " (in " + Math.round(delay / 1000) + "s)");
       restored++;
     } else {
-      // Past-due — wait 5s for WhatsApp session to fully warm up, then retry up to 3x
-      // Backoff: 5s → 15s → 45s
-      console.log("[Scheduler] Past-due job for " + job.recipient + " (was due " + new Date(job.sendAt).toLocaleString() + ") — retrying in 10s");
+      // Past-due — wait 15s for WhatsApp session to warm up, then retry up to 3x
+      // Backoff: 15s → 45s → 135s
+      console.log("[Scheduler] Past-due job for " + job.recipient + " (was due " + new Date(job.sendAt).toLocaleString() + ") — retrying in 15s");
       scheduledMessages.set(job.id, { ...job, timeout: null });
-      sendWithRetry(client, job, 3, 10000);
+      sendWithRetry(client, job, 3, 15000);
       sentLate++;
     }
   });
