@@ -785,7 +785,7 @@ async function afetch(url, opts = {}) {
   }
   return res;
 }
-let Q=[],TRASH=[];
+let Q=[],TRASH=[],qrPollInterval=null;
 
 /* ── Theme ── */
 let dark=localStorage.getItem("wabot-theme")==="dark"||(!localStorage.getItem("wabot-theme")&&matchMedia("(prefers-color-scheme:dark)").matches);
@@ -818,7 +818,18 @@ function go(p){
     const b=document.getElementById("bn-"+n);if(b)b.classList.toggle("on",n===p);
   });
   if(p==="trash")loadTrash();
-  if(p==="setup")loadQR();
+  if(p==="setup"){
+    loadQR();
+    clearInterval(qrPollInterval);
+    qrPollInterval=setInterval(()=>{
+      // Only keep polling if not connected
+      const tag=document.getElementById("qr-tag");
+      if(tag&&tag.textContent!=="Connected") loadQR();
+      else clearInterval(qrPollInterval);
+    },15000);
+  } else {
+    clearInterval(qrPollInterval);
+  }
 }
 
 /* ── Toast ── */
