@@ -81,6 +81,13 @@ app.get("/api/status", (req, res) => {
   res.json({ connected: client.info ? true : false, info: client.info || null });
 });
 
+// ── QR data (for dashboard embed) ────────────────
+app.get("/api/qr-data", (req, res) => {
+  if (client.info) return res.json({ connected: true, qr: null });
+  if (!latestQR)   return res.json({ connected: false, qr: null });
+  res.json({ connected: false, qr: latestQR });
+});
+
 // ── Scheduled messages ───────────────────────────
 app.get("/api/scheduled", (req, res) => {
   res.json(getScheduledMessages());
