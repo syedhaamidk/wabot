@@ -184,15 +184,19 @@ app.get("/api/contacts", async (req, res) => {
     const contacts = await session.client.getContacts();
     const seen = new Map();
     contacts
-      .filter(c => !c.isGroup && c.number)
+      .filter(c => !c.isGroup && c.id && c.id.user)
       .forEach(c => {
-        const num = c.number.replace(/\D/g, "");
-        if (!num) return;
-        const name = c.pushname || c.verifiedName || c.shortName || c.name || "";
+        // c.id.user is the most reliable phone number field
+        const num = c.id.user.replace(/\D/g, "");
+        if (!num || num.length < 7) return;
+        // Prefer saved contact name, then verified/short name, then WA pushname
+        const raw = (c.name || c.verifiedName || c.shortName || c.pushname || "").trim();
+        // A real name: not empty, not all digits, not just dots/symbols, has at least one letter
+        const isRealName = raw.length > 1 && /[a-zA-Z\u00C0-\u024F\u0600-\u06FF\u0900-\u097F]/.test(raw);
+        const bestName = isRealName ? raw : "";
         const existing = seen.get(num);
-        const hasRealName = name && name !== num && !/^\d+$/.test(name) && name.length > 1;
-        if (!existing || hasRealName) {
-          seen.set(num, { id: c.id._serialized, name: hasRealName ? name : "", number: num });
+        if (!existing || (!existing.name && bestName)) {
+          seen.set(num, { id: c.id._serialized, name: bestName, number: num });
         }
       });
     const result = Array.from(seen.values())
