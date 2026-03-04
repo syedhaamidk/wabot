@@ -1,522 +1,498 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>WhatsApp Scheduler</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WABot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"/>
 <style>
-  :root {
-    --bg: #0a0f0d;
-    --surface: #111a15;
-    --border: #1e3028;
-    --accent: #25d366;
-    --accent2: #128c4e;
-    --text: #e8f5ec;
-    --muted: #5a7a64;
-    --danger: #ff4d4d;
-    --warning: #f5a623;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: "Syne", sans-serif; min-height: 100vh; }
-  .mono { font-family: "JetBrains Mono", monospace; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
-  /* Layout */
-  .app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; }
-  .main { padding: 32px; overflow-y: auto; }
+/* ── Light theme ── */
+:root{
+  --bg:#f5f5f0;
+  --surface:#ffffff;
+  --surface2:#f9f9f7;
+  --text:#111111;
+  --sub:#888888;
+  --border:#e4e4e0;
+  --green:#16a34a;
+  --green-bg:#f0fdf4;
+  --green-border:rgba(22,163,74,.2);
+  --red:#dc2626;
+  --red-bg:#fef2f2;
+  --sidebar:210px;
+  --r:12px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05);
+  --trk-bg:#d8d8d8;
+  --code-text:#16a34a;
+  --input-placeholder:#c0c0c0;
+}
 
-  /* Sidebar */
-  .logo { padding: 0 24px 32px; display: flex; align-items: center; gap: 10px; }
-  .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-  .logo-text { font-size: 16px; font-weight: 800; letter-spacing: -0.5px; }
-  .logo-text span { color: var(--accent); }
+/* ── Dark theme ── */
+[data-theme="dark"]{
+  --bg:#0e0e0f;
+  --surface:#18181b;
+  --surface2:#1f1f23;
+  --text:#f0f0f0;
+  --sub:#666670;
+  --border:#2a2a2e;
+  --green:#22c55e;
+  --green-bg:rgba(34,197,94,.08);
+  --green-border:rgba(34,197,94,.2);
+  --red:#f87171;
+  --red-bg:rgba(248,113,113,.08);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25);
+  --trk-bg:#3a3a40;
+  --code-text:#4ade80;
+  --input-placeholder:#3a3a40;
+}
 
-  .nav-section { padding: 8px 0; }
-  .nav-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); padding: 0 24px 8px; text-transform: uppercase; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 24px; cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600; transition: all 0.15s; border-left: 3px solid transparent; }
-  .nav-item:hover { color: var(--text); background: rgba(37,211,102,0.05); }
-  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(37,211,102,0.08); }
-  .nav-item .icon { font-size: 16px; }
+html,body{min-height:100%;font-family:"Inter",sans-serif;color:var(--text);background:var(--bg);font-size:14px;line-height:1.5;transition:background .2s,color .2s}
+button,input,textarea,select{font-family:inherit;border:none;outline:none;background:none}
+button{cursor:pointer}
+input,textarea,select{color:var(--text);width:100%}
+input::placeholder,textarea::placeholder{color:var(--input-placeholder)}
+textarea{resize:none}
 
-  .status-badge { margin: auto 24px 24px; }
-  .badge { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; }
-  .badge.online { background: rgba(37,211,102,0.1); border: 1px solid rgba(37,211,102,0.2); color: var(--accent); }
-  .badge.offline { background: rgba(255,77,77,0.1); border: 1px solid rgba(255,77,77,0.2); color: var(--danger); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .dot.green { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
-  .dot.red { background: var(--danger); }
+/* ── Shell ── */
+.shell{display:flex;min-height:100vh}
 
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+/* ── Sidebar ── */
+.sb{width:var(--sidebar);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;position:fixed;top:0;left:0;height:100vh;z-index:10;transition:background .2s,border-color .2s}
+.sb-logo{padding:0 16px 24px;display:flex;align-items:center;gap:9px}
+.sb-mark{width:28px;height:28px;background:var(--green);border-radius:7px;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;letter-spacing:-.5px}
+.sb-name{font-size:15px;font-weight:700;letter-spacing:-.4px;color:var(--text)}
+.sb-name span{color:var(--green)}
+.sb-nav{flex:1;padding:0 8px}
+.sb-i{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;transition:.12s;margin-bottom:2px}
+.sb-i:hover{background:var(--surface2);color:var(--text)}
+.sb-i.on{background:var(--surface2);color:var(--text);font-weight:600}
+.sb-ic{font-size:14px;width:18px;text-align:center}
+.sb-foot{padding:0 10px;display:flex;flex-direction:column;gap:8px}
 
-  /* Main Content */
-  .page { display: none; }
-  .page.active { display: block; }
+/* connection pill */
+.conn{display:flex;align-items:center;gap:6px;padding:9px 11px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);transition:background .2s,border-color .2s}
+.conn-dot{width:6px;height:6px;border-radius:50%;background:#444;flex-shrink:0;transition:.3s}
+.conn-dot.on{background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{box-shadow:0 0 0 3px rgba(34,197,94,0)}}
+.conn-lbl{font-size:11px;font-weight:600;color:var(--sub);transition:.3s;letter-spacing:.2px}
+.conn-lbl.on{color:var(--green)}
 
-  .page-header { margin-bottom: 28px; }
-  .page-title { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
-  .page-subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
+/* theme toggle button */
+.theme-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px 11px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--sub);cursor:pointer;transition:.15s;letter-spacing:.2px}
+.theme-btn:hover{color:var(--text);border-color:var(--text)}
+.theme-icon{font-size:13px}
 
-  /* Cards */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-  .card-title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+/* ── Main ── */
+.main{flex:1;margin-left:var(--sidebar);padding:28px 28px 60px}
+.inner{max-width:580px}
 
-  /* Form Elements */
-  .form-group { margin-bottom: 16px; }
-  label { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
-  input, textarea, select {
-    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px 14px; color: var(--text); font-family: "JetBrains Mono", monospace; font-size: 13px;
-    outline: none; transition: border-color 0.15s;
-  }
-  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-  textarea { resize: vertical; min-height: 80px; }
+/* ── Mobile header ── */
+.mob-h{display:none;justify-content:space-between;align-items:center;padding:13px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;backdrop-filter:blur(10px)}
+.mob-logo{font-size:15px;font-weight:700;letter-spacing:-.4px}.mob-logo span{color:var(--green)}
+.mob-right{display:flex;align-items:center;gap:8px}
+.mob-theme{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);display:grid;place-items:center;font-size:14px;cursor:pointer;transition:.12s}
+.mob-pill{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:99px;border:1px solid var(--border);color:var(--sub);transition:.3s}
+.mob-pill.on{color:var(--green);border-color:var(--green-border);background:var(--green-bg)}
+.mob-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.mob-pill.on .mob-dot{animation:blink 2s infinite}
 
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+/* ── Bottom nav ── */
+.bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:8px 8px env(safe-area-inset-bottom);z-index:20;gap:2px;transition:background .2s}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;border-radius:8px;cursor:pointer;color:var(--sub);font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;transition:.12s}
+.bn.on{color:var(--green)}
+.bn-ic{font-size:18px;line-height:1}
 
-  /* Buttons */
-  .btn { padding: 10px 20px; border-radius: 8px; font-family: "Syne", sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: all 0.15s; letter-spacing: 0.3px; }
-  .btn-primary { background: var(--accent); color: #0a0f0d; }
-  .btn-primary:hover { background: #20c05c; transform: translateY(-1px); }
-  .btn-danger { background: rgba(255,77,77,0.1); color: var(--danger); border: 1px solid rgba(255,77,77,0.2); }
-  .btn-danger:hover { background: rgba(255,77,77,0.2); }
-  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-  .btn-sm { padding: 6px 12px; font-size: 12px; }
+/* ── Pages ── */
+.pg{display:none;animation:fadeup .18s ease}
+.pg.on{display:block}
+@keyframes fadeup{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ptitle{font-size:20px;font-weight:700;letter-spacing:-.6px;margin-bottom:2px}
+.psub{font-size:12px;color:var(--sub);margin-bottom:20px}
 
-  /* Toggle */
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
-  .toggle-row:last-child { border-bottom: none; }
-  .toggle-info { flex: 1; }
-  .toggle-label { font-size: 14px; font-weight: 600; }
-  .toggle-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-  .toggle input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; inset: 0; background: var(--border); border-radius: 24px; cursor: pointer; transition: 0.2s; }
-  .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: var(--muted); border-radius: 50%; transition: 0.2s; }
-  input:checked + .slider { background: var(--accent2); }
-  input:checked + .slider:before { transform: translateX(20px); background: var(--accent); }
+/* ── Card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:10px;box-shadow:var(--shadow);transition:background .2s,border-color .2s}
 
-  /* Table */
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
-  td { padding: 12px 14px; border-bottom: 1px solid rgba(30,48,40,0.5); font-family: "JetBrains Mono", monospace; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(37,211,102,0.03); }
+/* ── Field ── */
+.f{padding:12px 16px;border-bottom:1px solid var(--border);transition:background .12s}
+.f lbl,.f label{display:block;font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--sub);margin-bottom:5px}
+.f input,.f textarea{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;background:transparent}
+.f textarea{min-height:68px}
+.f-row{display:grid;grid-template-columns:1fr 1fr}
+.f-row .f{border-right:1px solid var(--border);border-bottom:none}
 
-  /* Status chips */
-  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-  .chip.pending { background: rgba(245,166,35,0.1); color: var(--warning); }
-  .chip.sent { background: rgba(37,211,102,0.1); color: var(--accent); }
+/* ── Calendar input ── */
+.cal-wrap{position:relative}
+.cal-wrap input{padding-right:24px;cursor:pointer}
+.cal-icon{position:absolute;right:0;top:50%;transform:translateY(-50%);color:var(--sub);pointer-events:none;font-size:13px}
 
-  /* Empty state */
-  .empty { text-align: center; padding: 48px 24px; color: var(--muted); }
-  .empty .empty-icon { font-size: 40px; margin-bottom: 12px; }
-  .empty p { font-size: 14px; }
+/* ── Buttons ── */
+.btn{width:100%;padding:11px;border-radius:9px;font-size:13px;font-weight:600;transition:.12s;letter-spacing:-.1px}
+.btn:active{transform:scale(.98);opacity:.85}
+.btn-dark{background:var(--text);color:var(--bg)}
+.btn-green{background:var(--green);color:#fff}
 
-  /* Notification */
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 14px 20px; font-size: 13px; font-weight: 600; transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; }
-  .toast.show { transform: translateY(0); opacity: 1; }
-  .toast.error { border-color: var(--danger); }
+/* ── Queue rows ── */
+.qrow{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background .1s;cursor:default}
+.qav{width:32px;height:32px;border-radius:50%;background:var(--green-bg);border:1px solid var(--green-border);display:grid;place-items:center;font-size:13px;flex-shrink:0}
+.qb{flex:1;min-width:0}
+.qto{font-size:12px;font-weight:600;font-family:"JetBrains Mono",monospace}
+.qtxt{font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.qmeta{text-align:right;flex-shrink:0}
+.qdate{font-size:11px;font-family:"JetBrains Mono",monospace;color:var(--sub);white-space:nowrap}
+.qtime{font-size:10px;color:var(--sub);opacity:.6;font-family:"JetBrains Mono",monospace;margin-top:1px}
+.xbtn{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:16px;color:var(--sub);transition:.12s;flex-shrink:0;line-height:1;opacity:.5}
+.xbtn:hover{background:var(--red-bg);color:var(--red);opacity:1}
 
-  /* Stats row */
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .stat-value { font-size: 32px; font-weight: 800; color: var(--accent); letter-spacing: -1px; }
-  .stat-label { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+/* ── Toggle rows ── */
+.tr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);gap:12px}
+.tl{font-size:13px;font-weight:500}.td{font-size:11px;color:var(--sub);margin-top:1px}
+.sw{position:relative;width:38px;height:21px;flex-shrink:0}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.trk{position:absolute;inset:0;border-radius:99px;background:var(--trk-bg);cursor:pointer;transition:.2s}
+.trk:before{content:"";position:absolute;width:15px;height:15px;top:3px;left:3px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw input:checked+.trk{background:var(--green)}
+.sw input:checked+.trk:before{transform:translateX(17px)}
+
+/* ── Section label ── */
+.sec{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--sub);padding:0 2px;margin:18px 0 7px}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);transition:background .2s}
+.stat-n{font-size:26px;font-weight:700;letter-spacing:-1.5px;color:var(--text);font-family:"JetBrains Mono",monospace}
+.stat-l{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--sub);margin-top:2px}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:32px;color:var(--sub)}
+.ei{font-size:28px;margin-bottom:6px}
+.empty p{font-size:12px}
+
+/* ── Steps ── */
+.step{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border);align-items:flex-start}
+.sn{width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}
+.st{font-size:13px;font-weight:600;margin-bottom:2px}.sd{font-size:12px;color:var(--sub);line-height:1.6}
+.code{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;margin-top:6px;color:var(--code-text);transition:background .2s}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);padding:8px 18px;border-radius:99px;font-size:12px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;white-space:nowrap;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.toast.ok{background:var(--text);color:var(--bg);opacity:1;transform:translateX(-50%)}
+.toast.err{background:var(--red);color:#fff;opacity:1;transform:translateX(-50%)}
+
+/* ── Flatpickr overrides ── */
+.flatpickr-calendar{border:1px solid var(--border)!important;border-radius:var(--r)!important;box-shadow:0 8px 32px rgba(0,0,0,.15)!important;font-family:"Inter",sans-serif!important;background:var(--surface)!important}
+.flatpickr-day{color:var(--text)!important}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--green)!important;border-color:var(--green)!important;color:#fff!important}
+.flatpickr-day:hover{background:var(--green-bg)!important}
+.flatpickr-day.flatpickr-disabled{color:var(--sub)!important;opacity:.4}
+.flatpickr-months .flatpickr-month{background:var(--surface)!important;color:var(--text)!important;fill:var(--text)!important}
+.flatpickr-months .flatpickr-prev-month,.flatpickr-months .flatpickr-next-month{fill:var(--text)!important;color:var(--text)!important}
+.flatpickr-current-month{font-family:"Inter",sans-serif!important;font-weight:700!important;color:var(--text)!important}
+.flatpickr-current-month .numInputWrapper input{color:var(--text)!important}
+.flatpickr-weekday{font-family:"Inter",sans-serif!important;font-weight:700!important;color:var(--sub)!important;background:var(--surface)!important}
+.flatpickr-weekdays{background:var(--surface)!important}
+.numInputWrapper:hover{background:var(--surface2)!important}
+.flatpickr-time{background:var(--surface)!important;border-top:1px solid var(--border)!important}
+.flatpickr-time input{color:var(--text)!important;background:var(--surface)!important}
+.flatpickr-time .flatpickr-am-pm{color:var(--text)!important}
+.flatpickr-innerContainer{background:var(--surface)!important}
+.flatpickr-rContainer{background:var(--surface)!important}
+
+/* ── Responsive ── */
+@media(max-width:700px){
+.sb{display:none}
+.main{margin-left:0;padding:0;max-width:100%}
+.inner{max-width:100%;padding:14px 13px 88px}
+.mob-h{display:flex}
+.bnav{display:flex}
+.toast{bottom:84px}
+.f-row{grid-template-columns:1fr}
+.f-row .f{border-right:none;border-bottom:1px solid var(--border)}
+.stats{grid-template-columns:repeat(3,1fr)}
+.ptitle{font-size:18px}
+}
+@media(min-width:701px) and (max-width:1000px){
+.main{padding:20px}
+}
 </style>
 </head>
 <body>
-
-<div class="app">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-icon">W</div>
-      <div class="logo-text">WA<span>Bot</span></div>
+<div class="shell">
+  <aside class="sb">
+    <div class="sb-logo">
+      <div class="sb-mark">W</div>
+      <div class="sb-name">wa<span>bot</span></div>
     </div>
-
-    <div class="nav-section">
-      <div class="nav-label">Menu</div>
-      <div class="nav-item active" onclick="showPage('scheduler')">
-        <span class="icon">📅</span> Scheduler
+    <nav class="sb-nav">
+      <div class="sb-i on" onclick="go('schedule',this)"><span class="sb-ic">📅</span>Schedule</div>
+      <div class="sb-i" onclick="go('autoreply',this)"><span class="sb-ic">🤖</span>Auto-Reply</div>
+      <div class="sb-i" onclick="go('setup',this)"><span class="sb-ic">⚙️</span>Setup</div>
+    </nav>
+    <div class="sb-foot">
+      <div class="conn">
+        <div class="conn-dot" id="sb-dot"></div>
+        <div class="conn-lbl" id="sb-lbl">Checking…</div>
       </div>
-      <div class="nav-item" onclick="showPage('autoreply')">
-        <span class="icon">🤖</span> Auto-Reply
-      </div>
-      <div class="nav-item" onclick="showPage('setup')">
-        <span class="icon">⚙️</span> Setup Guide
-      </div>
-    </div>
-
-    <div class="status-badge">
-      <div class="badge offline" id="statusBadge">
-        <div class="dot red" id="statusDot"></div>
-        <span id="statusText">Connecting...</span>
-      </div>
+      <button class="theme-btn" onclick="toggleTheme()">
+        <span class="theme-icon" id="theme-icon">🌙</span>
+        <span id="theme-label">Dark mode</span>
+      </button>
     </div>
   </aside>
 
-  <!-- Main -->
-  <main class="main">
-
-    <!-- Scheduler Page -->
-    <div class="page active" id="page-scheduler">
-      <div class="page-header">
-        <div class="page-title">Message Scheduler</div>
-        <div class="page-subtitle">Schedule messages to be sent at a specific time</div>
-      </div>
-
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-value" id="stat-pending">0</div>
-          <div class="stat-label">Pending</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="stat-sent">0</div>
-          <div class="stat-label">Sent Today</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-label">Total Scheduled</div>
-        </div>
-      </div>
-
-      <!-- New Message Form -->
-      <div class="card">
-        <div class="card-title">Schedule New Message</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Recipient Phone Number</label>
-            <input type="text" id="recipient" placeholder="e.g. 919876543210 (with country code)" class="mono" />
-          </div>
-          <div class="form-group">
-            <label>Send At</label>
-            <input type="datetime-local" id="sendAt" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Message</label>
-          <textarea id="messageText" placeholder="Type your message here..."></textarea>
-        </div>
-        <button class="btn btn-primary" onclick="scheduleMessage()">Schedule Message</button>
-      </div>
-
-      <!-- Scheduled Messages List -->
-      <div class="card">
-        <div class="card-title">Scheduled Messages</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Recipient</th>
-                <th>Message</th>
-                <th>Send At</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="scheduledList">
-              <tr><td colspan="5"><div class="empty"><div class="empty-icon">📭</div><p>No messages scheduled yet</p></div></td></tr>
-            </tbody>
-          </table>
-        </div>
+  <div class="main">
+    <div class="mob-h">
+      <div class="mob-logo">wa<span>bot</span></div>
+      <div class="mob-right">
+        <div class="mob-theme" onclick="toggleTheme()" id="mob-theme-btn" title="Toggle theme">🌙</div>
+        <div class="mob-pill" id="mob-pill"><div class="mob-dot" id="mob-dot"></div><span id="mob-lbl">Offline</span></div>
       </div>
     </div>
 
-    <!-- Auto-Reply Page -->
-    <div class="page" id="page-autoreply">
-      <div class="page-header">
-        <div class="page-title">Auto-Reply</div>
-        <div class="page-subtitle">Automatically reply when you are busy or away</div>
+    <div class="inner">
+
+      <!-- Schedule -->
+      <div class="pg on" id="pg-schedule">
+        <div class="ptitle">Schedule</div>
+        <div class="psub">Send a message at any future time</div>
+
+        <div class="stats">
+          <div class="stat"><div class="stat-n" id="st-p">0</div><div class="stat-l">Pending</div></div>
+          <div class="stat"><div class="stat-n" id="st-s">0</div><div class="stat-l">Sent</div></div>
+          <div class="stat"><div class="stat-n" id="st-t">0</div><div class="stat-l">Total</div></div>
+        </div>
+
+        <div class="card">
+          <div class="f"><label>To — phone with country code</label><input id="s-to" type="tel" placeholder="919876543210"/></div>
+          <div class="f"><label>Message</label><textarea id="s-msg" placeholder="What do you want to say?"></textarea></div>
+          <div class="f">
+            <label>Send at</label>
+            <div class="cal-wrap">
+              <input id="s-at" placeholder="Pick date &amp; time…" readonly/>
+              <span class="cal-icon">📅</span>
+            </div>
+          </div>
+          <div class="f"><button class="btn btn-dark" onclick="addMsg()">Schedule →</button></div>
+        </div>
+
+        <div class="sec">Queued</div>
+        <div class="card" id="qcard"><div class="empty"><div class="ei">📭</div><p>Nothing scheduled yet</p></div></div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Auto-Reply Settings</div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">Enable Auto-Reply</div>
-            <div class="toggle-desc">Automatically reply to incoming messages</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="ar-enabled" onchange="saveAutoReply()" />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">Reply to Groups</div>
-            <div class="toggle-desc">Also send auto-replies in group chats</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="ar-groups" onchange="saveAutoReply()" />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">Schedule-Based</div>
-            <div class="toggle-desc">Only auto-reply during specific hours</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="ar-schedule-enabled" onchange="toggleScheduleFields(); saveAutoReply()" />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div id="schedule-fields" style="display:none; padding: 16px 0 0;">
-          <div class="form-row-3">
-            <div class="form-group">
-              <label>From (start time)</label>
-              <input type="time" id="ar-start" value="22:00" onchange="saveAutoReply()" />
+      <!-- Auto-Reply -->
+      <div class="pg" id="pg-autoreply">
+        <div class="ptitle">Auto-Reply</div>
+        <div class="psub">Reply automatically when you are busy</div>
+        <div class="card">
+          <div class="tr"><div><div class="tl">Auto-reply on</div><div class="td">Reply to incoming messages</div></div><label class="sw"><input type="checkbox" id="ar-on" onchange="sAR()"/><div class="trk"></div></label></div>
+          <div class="tr"><div><div class="tl">Include groups</div><div class="td">Also reply in group chats</div></div><label class="sw"><input type="checkbox" id="ar-grp" onchange="sAR()"/><div class="trk"></div></label></div>
+          <div class="tr"><div><div class="tl">Time-based only</div><div class="td">Active only during set hours</div></div><label class="sw"><input type="checkbox" id="ar-tb" onchange="tTF();sAR()"/><div class="trk"></div></label></div>
+          <div id="tf" style="display:none;border-top:1px solid var(--border)">
+            <div class="f-row">
+              <div class="f"><label>From</label><input type="time" id="ar-from" value="22:00" onchange="sAR()"/></div>
+              <div class="f"><label>Until</label><input type="time" id="ar-until" value="08:00" onchange="sAR()"/></div>
             </div>
-            <div class="form-group">
-              <label>To (end time)</label>
-              <input type="time" id="ar-end" value="08:00" onchange="saveAutoReply()" />
-            </div>
-            <div class="form-group">
-              <label>Cooldown (minutes)</label>
-              <input type="number" id="ar-cooldown" value="60" min="1" onchange="saveAutoReply()" />
-            </div>
+            <div class="f"><label>Cooldown (mins between replies)</label><input type="number" id="ar-cool" value="60" min="1" onchange="sAR()"/></div>
           </div>
-          <p style="font-size:12px; color: var(--muted); margin-top: -8px;">
-            Overnight works too - e.g. 22:00 to 08:00 means active from 10pm to 8am
-          </p>
+        </div>
+        <div class="sec">Message</div>
+        <div class="card">
+          <div class="f"><label>Sent to everyone who messages you</label><textarea id="ar-msg" rows="3">Hey! I am currently busy and will reply soon.</textarea></div>
+          <div class="f"><button class="btn btn-green" onclick="sAR()">Save changes</button></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Busy Message</div>
-        <div class="form-group">
-          <label>Message sent to people who contact you</label>
-          <textarea id="ar-message" rows="4" placeholder="Type your auto-reply message..." onchange="saveAutoReply()">Hey! I am currently busy and will get back to you soon.</textarea>
+      <!-- Setup -->
+      <div class="pg" id="pg-setup">
+        <div class="ptitle">Setup</div>
+        <div class="psub">Get running in under 5 minutes</div>
+        <div class="card">
+          <div class="step"><div class="sn">1</div><div><div class="st">Install Node.js 16+</div><div class="sd">Download from nodejs.org if not installed.</div></div></div>
+          <div class="step"><div class="sn">2</div><div><div class="st">Install dependencies</div><div class="code">npm install</div></div></div>
+          <div class="step"><div class="sn">3</div><div><div class="st">Start the server</div><div class="code">node index.js</div></div></div>
+          <div class="step"><div class="sn">4</div><div><div class="st">Link WhatsApp</div><div class="sd">WhatsApp → Linked Devices → scan QR at /qr</div></div></div>
+          <div class="step"><div class="sn">5</div><div><div class="st">Open dashboard</div><div class="code">https://wabot-production-696d.up.railway.app</div></div></div>
         </div>
-        <button class="btn btn-primary" onclick="saveAutoReply()">Save Changes</button>
+        <div class="card" style="border-color:rgba(220,38,38,.25);margin-top:10px">
+          <div class="step"><div class="sn" style="background:var(--red)">!</div><div><div class="st">Fair use only</div><div class="sd">whatsapp-web.js is unofficial. Use for personal automation only, never bulk messaging.</div></div></div>
+        </div>
       </div>
+
     </div>
-
-    <!-- Setup Guide Page -->
-    <div class="page" id="page-setup">
-      <div class="page-header">
-        <div class="page-title">Setup Guide</div>
-        <div class="page-subtitle">Get your WhatsApp bot running in minutes</div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Step 1 - Install Dependencies</div>
-        <p style="font-size:13px; color:var(--muted); margin-bottom: 12px;">Make sure you have Node.js 16+ installed, then run:</p>
-        <pre style="background:var(--bg); padding:14px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--accent); overflow-x:auto;">npm install</pre>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Step 2 - Start the Server</div>
-        <pre style="background:var(--bg); padding:14px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--accent); overflow-x:auto;">node index.js</pre>
-        <p style="font-size:13px; color:var(--muted); margin-top:12px;">A QR code will appear in your terminal.</p>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Step 3 - Link WhatsApp</div>
-        <ol style="font-size:13px; color:var(--muted); line-height:2; padding-left:18px;">
-          <li>Open WhatsApp on your phone</li>
-          <li>Tap the three dots (menu) and select <strong style="color:var(--text)">Linked Devices</strong></li>
-          <li>Tap <strong style="color:var(--text)">Link a Device</strong></li>
-          <li>Scan the QR code shown in the terminal</li>
-        </ol>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Step 4 - Open Dashboard</div>
-        <p style="font-size:13px; color:var(--muted);">Once connected, open this dashboard at:</p>
-        <pre style="background:var(--bg); padding:14px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--accent); margin-top:10px;">http://localhost:3000</pre>
-      </div>
-
-      <div class="card" style="border-color: rgba(255,77,77,0.2);">
-        <div class="card-title" style="color:var(--danger)">Important Warning</div>
-        <p style="font-size:13px; color:var(--muted); line-height:1.8;">
-          This uses <strong style="color:var(--text)">whatsapp-web.js</strong>, an unofficial library that automates WhatsApp Web.
-          This is against WhatsApp Terms of Service. Use responsibly and at your own risk.
-          Avoid sending spam or bulk messages. Your account could be temporarily or permanently banned.
-        </p>
-      </div>
-    </div>
-
-  </main>
+  </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<nav class="bnav">
+  <div class="bn on" id="bn-schedule" onclick="go('schedule',this,'bn')"><div class="bn-ic">📅</div>Schedule</div>
+  <div class="bn" id="bn-autoreply" onclick="go('autoreply',this,'bn')"><div class="bn-ic">🤖</div>Reply</div>
+  <div class="bn" id="bn-setup" onclick="go('setup',this,'bn')"><div class="bn-ic">⚙️</div>Setup</div>
+</nav>
+<div class="toast" id="tst"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-const API = "https://wabot-production-696d.up.railway.app/api";
+const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ? "/api"
+  : "https://wabot-production-696d.up.railway.app/api";
 
-// Navigation
-function showPage(name) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
-  document.getElementById("page-" + name).classList.add("active");
-  event.currentTarget.classList.add("active");
+let Q = [];
+
+/* ── Theme ── */
+const root = document.documentElement;
+let dark = localStorage.getItem("wabot-theme") === "dark" ||
+  (!localStorage.getItem("wabot-theme") && matchMedia("(prefers-color-scheme:dark)").matches);
+
+function applyTheme() {
+  root.setAttribute("data-theme", dark ? "dark" : "light");
+  const icon = dark ? "☀️" : "🌙";
+  const label = dark ? "Light mode" : "Dark mode";
+  document.getElementById("theme-icon").textContent = icon;
+  document.getElementById("theme-label").textContent = label;
+  document.getElementById("mob-theme-btn").textContent = icon;
+  localStorage.setItem("wabot-theme", dark ? "dark" : "light");
 }
 
-// Toast notification
-function toast(msg, isError) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = "toast show" + (isError ? " error" : "");
-  setTimeout(() => t.classList.remove("show"), 3000);
-}
+function toggleTheme() { dark = !dark; applyTheme(); }
 
-// Status check
-async function checkStatus() {
-  try {
-    const r = await fetch(API + "/status");
-    const d = await r.json();
-    const badge = document.getElementById("statusBadge");
-    const dot = document.getElementById("statusDot");
-    const text = document.getElementById("statusText");
-    if (d.connected) {
-      badge.className = "badge online";
-      dot.className = "dot green";
-      text.textContent = "Connected";
-    } else {
-      badge.className = "badge offline";
-      dot.className = "dot red";
-      text.textContent = "Disconnected";
-    }
-  } catch (e) {
-    document.getElementById("statusText").textContent = "Server offline";
+applyTheme();
+
+/* ── Flatpickr ── */
+const fp = flatpickr("#s-at", {
+  enableTime: true,
+  dateFormat: "Y-m-d\\TH:i",
+  altInput: true,
+  altFormat: "D, M j · h:i K",
+  minDate: "today",
+  minuteIncrement: 5,
+  disableMobile: false
+});
+
+/* ── Nav ── */
+function go(p, el, t) {
+  document.querySelectorAll(".pg").forEach(x => x.classList.remove("on"));
+  document.getElementById("pg-" + p).classList.add("on");
+  document.querySelectorAll(".sb-i").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".bn").forEach(x => x.classList.remove("on"));
+  if (t === "bn") {
+    el.classList.add("on");
+    const items = document.querySelectorAll(".sb-i");
+    ["schedule","autoreply","setup"].forEach((n,i) => { if(n===p) items[i].classList.add("on"); });
+  } else {
+    el.classList.add("on");
+    const b = document.getElementById("bn-" + p);
+    if (b) b.classList.add("on");
   }
 }
 
-// Load and display scheduled messages
-async function loadScheduled() {
+function toast(m, t="ok") {
+  const e = document.getElementById("tst");
+  e.textContent = m; e.className = "toast " + t;
+  setTimeout(() => e.className = "toast", 2200);
+}
+
+async function chkStatus() {
   try {
-    const r = await fetch(API + "/scheduled");
-    const msgs = await r.json();
-    const tbody = document.getElementById("scheduledList");
-
-    document.getElementById("stat-pending").textContent = msgs.filter(m => m.status === "pending").length;
-    document.getElementById("stat-total").textContent = msgs.length;
-
-    if (!msgs.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><div class="empty-icon">📭</div><p>No messages scheduled yet</p></div></td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = msgs.map(m => {
-      const dt = new Date(m.sendAt);
-      const formatted = dt.toLocaleString();
-      return '<tr>' +
-        '<td>' + m.recipient + '</td>' +
-        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(m.message) + '</td>' +
-        '<td>' + formatted + '</td>' +
-        '<td><span class="chip pending">Pending</span></td>' +
-        '<td><button class="btn btn-danger btn-sm" onclick="cancelMsg(' + JSON.stringify(m.id) + ')">Cancel</button></td>' +
-        '</tr>';
-    }).join("");
-  } catch (e) {}
+    const d = await (await fetch(API + "/status")).json();
+    const on = d.connected;
+    document.getElementById("sb-dot").className = "conn-dot" + (on ? " on" : "");
+    document.getElementById("sb-lbl").textContent = on ? "Connected" : "Disconnected";
+    document.getElementById("sb-lbl").className = "conn-lbl" + (on ? " on" : "");
+    document.getElementById("mob-lbl").textContent = on ? "Live" : "Offline";
+    document.getElementById("mob-pill").className = "mob-pill" + (on ? " on" : "");
+  } catch(e) { document.getElementById("sb-lbl").textContent = "Offline"; }
 }
 
-function escHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function renderQ() {
+  const c = document.getElementById("qcard");
+  document.getElementById("st-p").textContent = Q.filter(m=>m.status==="pending").length;
+  document.getElementById("st-s").textContent = Q.filter(m=>m.status==="sent").length;
+  document.getElementById("st-t").textContent = Q.length;
+  if (!Q.length) { c.innerHTML = '<div class="empty"><div class="ei">📭</div><p>Nothing scheduled yet</p></div>'; return; }
+  c.innerHTML = Q.map(m => {
+    const dt = new Date(m.sendAt);
+    const date = dt.toLocaleDateString([],{month:"short",day:"numeric"});
+    const time = dt.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    const safeId = esc(m.id);
+    return `<div class="qrow">
+      <div class="qav">💬</div>
+      <div class="qb"><div class="qto">${esc(m.recipient)}</div><div class="qtxt">${esc(m.message)}</div></div>
+      <div class="qmeta"><div class="qdate">${date}</div><div class="qtime">${time}</div></div>
+      <button class="xbtn" onclick="delMsg('${safeId}')">×</button>
+    </div>`;
+  }).join("");
 }
 
-// Schedule a new message
-async function scheduleMessage() {
-  const recipient = document.getElementById("recipient").value.trim();
-  const sendAt = document.getElementById("sendAt").value;
-  const message = document.getElementById("messageText").value.trim();
+async function loadQ() {
+  try { Q = await (await fetch(API + "/scheduled")).json(); renderQ(); } catch(e) {}
+}
 
-  if (!recipient || !sendAt || !message) {
-    return toast("Please fill in all fields", true);
-  }
+async function addMsg() {
+  const to = document.getElementById("s-to").value.trim();
+  const msg = document.getElementById("s-msg").value.trim();
+  const at = fp.selectedDates[0];
+  if (!to || !msg || !at) return toast("Fill all fields", "err");
+  if (at <= new Date()) return toast("Pick a future time", "err");
+
+  const sendAt = at.toISOString();
+  const tmp = { id: "tmp" + Date.now(), recipient: to, message: msg, sendAt, status: "pending" };
+  Q.push(tmp); renderQ();
 
   try {
     const r = await fetch(API + "/scheduled", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipient, message, sendAt })
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipient: to, message: msg, sendAt })
     });
     const d = await r.json();
-    if (!r.ok) return toast(d.error || "Error scheduling message", true);
-    toast("Message scheduled successfully!");
-    document.getElementById("recipient").value = "";
-    document.getElementById("messageText").value = "";
-    document.getElementById("sendAt").value = "";
-    loadScheduled();
-  } catch (e) {
-    toast("Could not connect to server. Is it running?", true);
+    if (!r.ok) { Q = Q.filter(m => m.id !== tmp.id); renderQ(); return toast(d.error || "Error", "err"); }
+    Q = Q.map(m => m.id === tmp.id ? d.job : m); renderQ();
+    toast("Scheduled ✓");
+    document.getElementById("s-to").value = "";
+    document.getElementById("s-msg").value = "";
+    fp.clear();
+  } catch(e) { Q = Q.filter(m => m.id !== tmp.id); renderQ(); toast("Server offline", "err"); }
+}
+
+async function delMsg(id) {
+  const backup = Q.find(m => m.id === id);
+  Q = Q.filter(m => m.id !== id); renderQ();
+  try {
+    const r = await fetch(API + "/scheduled/" + id, { method: "DELETE" });
+    if (!r.ok) throw new Error("Delete failed");
+    toast("Removed");
+  } catch(e) {
+    if (backup) { Q.push(backup); renderQ(); }
+    toast("Could not remove", "err");
   }
 }
 
-// Cancel a scheduled message
-async function cancelMsg(id) {
+async function lAR() {
   try {
-    await fetch(API + "/scheduled/" + id, { method: "DELETE" });
-    toast("Message cancelled");
-    loadScheduled();
-  } catch (e) {
-    toast("Error cancelling message", true);
-  }
+    const c = await (await fetch(API + "/autoreply")).json();
+    document.getElementById("ar-on").checked = c.enabled;
+    document.getElementById("ar-grp").checked = c.replyToGroups;
+    document.getElementById("ar-tb").checked = c.schedule.enabled;
+    document.getElementById("ar-from").value = c.schedule.startTime;
+    document.getElementById("ar-until").value = c.schedule.endTime;
+    document.getElementById("ar-cool").value = c.cooldownMinutes;
+    document.getElementById("ar-msg").value = c.busyMessage;
+    tTF();
+  } catch(e) {}
 }
 
-// Load auto-reply config
-async function loadAutoReply() {
-  try {
-    const r = await fetch(API + "/autoreply");
-    const c = await r.json();
-    document.getElementById("ar-enabled").checked = c.enabled;
-    document.getElementById("ar-groups").checked = c.replyToGroups;
-    document.getElementById("ar-schedule-enabled").checked = c.schedule.enabled;
-    document.getElementById("ar-start").value = c.schedule.startTime;
-    document.getElementById("ar-end").value = c.schedule.endTime;
-    document.getElementById("ar-cooldown").value = c.cooldownMinutes;
-    document.getElementById("ar-message").value = c.busyMessage;
-    toggleScheduleFields();
-  } catch (e) {}
+async function sAR() {
+  const b = { enabled: document.getElementById("ar-on").checked, replyToGroups: document.getElementById("ar-grp").checked, busyMessage: document.getElementById("ar-msg").value, cooldownMinutes: parseInt(document.getElementById("ar-cool").value)||60, schedule: { enabled: document.getElementById("ar-tb").checked, startTime: document.getElementById("ar-from").value, endTime: document.getElementById("ar-until").value }};
+  try { const r = await fetch(API+"/autoreply",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}); toast(r.ok?"Saved ✓":"Error",r.ok?"ok":"err"); } catch(e) { toast("Server offline","err"); }
 }
 
-// Save auto-reply config
-async function saveAutoReply() {
-  const config = {
-    enabled: document.getElementById("ar-enabled").checked,
-    replyToGroups: document.getElementById("ar-groups").checked,
-    busyMessage: document.getElementById("ar-message").value,
-    cooldownMinutes: parseInt(document.getElementById("ar-cooldown").value) || 60,
-    schedule: {
-      enabled: document.getElementById("ar-schedule-enabled").checked,
-      startTime: document.getElementById("ar-start").value,
-      endTime: document.getElementById("ar-end").value
-    }
-  };
+function tTF() { document.getElementById("tf").style.display = document.getElementById("ar-tb").checked ? "block" : "none"; }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 
-  try {
-    const r = await fetch(API + "/autoreply", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config)
-    });
-    if (r.ok) toast("Auto-reply settings saved");
-    else toast("Error saving settings", true);
-  } catch (e) {
-    toast("Could not connect to server", true);
-  }
-}
-
-function toggleScheduleFields() {
-  const enabled = document.getElementById("ar-schedule-enabled").checked;
-  document.getElementById("schedule-fields").style.display = enabled ? "block" : "none";
-}
-
-// Init
-checkStatus();
-loadScheduled();
-loadAutoReply();
-setInterval(checkStatus, 10000);
-setInterval(loadScheduled, 15000);
+chkStatus(); loadQ(); lAR();
+setInterval(chkStatus, 8000);
+setInterval(loadQ, 12000);
 </script>
 </body>
 </html>
