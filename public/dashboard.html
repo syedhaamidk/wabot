@@ -1021,6 +1021,7 @@ function go(p){
   });
   if(p==="trash")loadTrash();
   if(p==="templates")loadTpls();
+  if(p==="autoreply")lAR();
   if(p==="setup"){
     loadQR();
     clearInterval(qrPollInterval);
@@ -1152,7 +1153,13 @@ function renderTrash(){
     </div>`;
   }).join("");
 }
-async function loadTrash(){try{TRASH=await(await afetch(API+"/trash")).json();renderTrash();}catch(e){}}
+async function loadTrash(){
+  try {
+    const r = await afetch(API+"/trash");
+    if (!r.ok) { toast("Trash API error ("+r.status+")","err"); return; }
+    TRASH = await r.json(); renderTrash();
+  } catch(e){ toast("Could not load trash","err"); }
+}
 async function restoreMsg(id){
   try{const r=await afetch(API+"/trash/"+id+"/restore",{method:"POST"});if(!r.ok)return toast("Could not restore","err");toast("Restored ✓");await loadQ();await loadTrash();}
   catch(e){toast("Server offline","err");}
@@ -1229,7 +1236,9 @@ async function delMsg(id){
 /* ── Auto-reply ── */
 async function lAR(){
   try{
-    const c=await(await afetch(API+"/autoreply")).json();
+    const r = await afetch(API+"/autoreply");
+    if (!r.ok) { toast("Auto-reply API error ("+r.status+")","err"); return; }
+    const c = await r.json();
     document.getElementById("ar-on").checked=c.enabled;
     document.getElementById("ar-grp").checked=c.replyToGroups;
     document.getElementById("ar-tb").checked=c.schedule.enabled;
@@ -1238,7 +1247,7 @@ async function lAR(){
     document.getElementById("ar-cool").value=c.cooldownMinutes;
     document.getElementById("ar-msg").value=c.busyMessage;
     tTF();
-  }catch(e){}
+  }catch(e){toast("Could not load auto-reply settings","err");}
 }
 async function sAR(){
   const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
@@ -1417,7 +1426,11 @@ window.addEventListener("scroll", ()=>{ if (cpOpen) positionDropdown(cpOpen); },
 let TPLS = [], editingTplId = null;
 
 async function loadTpls() {
-  try { TPLS = await (await afetch(API+"/templates")).json(); renderTpls(); } catch(e) {}
+  try {
+    const r = await afetch(API+"/templates");
+    if (!r.ok) { toast("Templates API not available ("+r.status+")","err"); return; }
+    TPLS = await r.json(); renderTpls();
+  } catch(e) { toast("Could not load templates","err"); }
 }
 
 function renderTpls() {
