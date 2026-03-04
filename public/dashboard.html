@@ -227,6 +227,8 @@ html,body{
 /* collapsed footer: center dots */
 .sb:not(.sb-expanded) .sb-foot{padding:10px 6px 14px;overflow:hidden}
 .sb:not(.sb-expanded) .sb-user{justify-content:center;padding:8px 0;background:transparent;border-color:transparent;overflow:hidden}
+.sb:not(.sb-expanded) .sb-signout{display:none}
+.sb:not(.sb-expanded) .sb-email{display:none}
 .sb:not(.sb-expanded) .conn-pill{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
 .sb:not(.sb-expanded) .theme-toggle{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
 
@@ -657,6 +659,10 @@ html,body{
       <div class="sb-pip"></div>
       <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg></div><span class="sb-item-label">Auto-Reply</span>
     </div>
+    <div class="sb-item" onclick="go('templates')" id="sbi-templates">
+      <div class="sb-pip"></div>
+      <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><span class="sb-item-label">Templates</span>
+    </div>
     <div class="sb-group-label">Other</div>
     <div class="sb-item" onclick="go('trash')" id="sbi-trash">
       <div class="sb-pip"></div>
@@ -850,6 +856,40 @@ html,body{
       </div>
     </div>
 
+    <!-- ══ TEMPLATES ══ -->
+    <div class="pg" id="pg-templates">
+      <div class="ph">
+        <div class="ptitle">Templates</div>
+        <div class="psub">Save and reuse message templates</div>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="sec-label" id="tpl-form-label">New template</div>
+          <div class="panel">
+            <div class="panel-shimmer"></div>
+            <div class="f">
+              <label>Name</label>
+              <input id="tpl-name" type="text" placeholder="e.g. Meeting reminder" maxlength="60"/>
+            </div>
+            <div class="f">
+              <label>Message body</label>
+              <textarea id="tpl-body" placeholder="Your reusable message…" style="min-height:120px"></textarea>
+            </div>
+            <div class="f" style="display:flex;gap:7px">
+              <button class="btn btn-primary" onclick="saveTpl()" style="flex:1" id="tpl-save-btn">Save template</button>
+              <button class="btn btn-ghost" onclick="cancelTplEdit()" id="tpl-cancel-btn" style="display:none;flex:0 0 auto;width:auto;padding:11px 16px">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="sec-label">Saved templates</div>
+          <div class="panel" id="tpl-list">
+            <div class="empty"><div class="empty-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z"/><polyline points="14 2 14 8 20 8"/></svg></div><p>No templates yet</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /page-wrap -->
 </div><!-- /main -->
 
@@ -857,6 +897,7 @@ html,body{
 <nav class="bnav">
   <div class="bn on" id="bn-schedule" onclick="go('schedule')"><div class="bn-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>Schedule</div>
   <div class="bn" id="bn-autoreply" onclick="go('autoreply')"><div class="bn-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg></div>Reply</div>
+  <div class="bn" id="bn-templates" onclick="go('templates')"><div class="bn-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>Templates</div>
   <div class="bn" id="bn-trash" onclick="go('trash')"><div class="bn-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></div>Trash</div>
   <div class="bn" id="bn-setup" onclick="go('setup')"><div class="bn-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>Setup</div>
 </nav>
@@ -971,7 +1012,7 @@ function closeSb(){document.getElementById("sb").classList.remove("open");docume
 const fp=flatpickr("#s-at",{enableTime:true,dateFormat:"Y-m-d\\TH:i",altInput:true,altFormat:"D, M j · h:i K",minDate:"today",minuteIncrement:5,disableMobile:false});
 
 /* ── Nav ── */
-const PAGES=["schedule","autoreply","trash","setup"];
+const PAGES=["schedule","autoreply","templates","trash","setup"];
 function go(p){
   closeSb();
   document.querySelectorAll(".pg").forEach(x=>x.classList.remove("on"));
@@ -981,6 +1022,7 @@ function go(p){
     const b=document.getElementById("bn-"+n);if(b)b.classList.toggle("on",n===p);
   });
   if(p==="trash")loadTrash();
+  if(p==="templates")loadTpls();
   if(p==="setup"){
     loadQR();
     clearInterval(qrPollInterval);
@@ -1358,7 +1400,96 @@ document.addEventListener("click", e => {
 // Reposition on scroll/resize
 window.addEventListener("resize", ()=>{ if (cpOpen) positionDropdown(cpOpen); });
 
-chkStatus();loadQ();loadTrash();lAR();
+// ── Templates ──
+let TPLS = [], editingTplId = null;
+
+async function loadTpls() {
+  try { TPLS = await (await afetch(API+"/templates")).json(); renderTpls(); } catch(e) {}
+}
+
+function renderTpls() {
+  const c = document.getElementById("tpl-list");
+  if (!TPLS.length) {
+    c.innerHTML = '<div class="empty"><div class="empty-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z"/><polyline points="14 2 14 8 20 8"/></svg></div><p>No templates yet</p></div>';
+    return;
+  }
+  c.innerHTML = TPLS.map(t => `
+    <div class="qrow">
+      <div class="qav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+      <div class="qb">
+        <div class="qto">${esc(t.name)}</div>
+        <div class="qtxt">${esc(t.body)}</div>
+        ${t.usageCount ? `<div style="font-size:10px;color:var(--sub);margin-top:2px">Used ${t.usageCount}×</div>` : ''}
+      </div>
+      <div class="row-acts">
+        <button class="act" onclick="useTpl('${esc(t.id)}')" title="Use in schedule" style="color:var(--em);opacity:.7"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></button>
+        <button class="act edit" onclick="editTpl('${esc(t.id)}')" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="act del" onclick="deleteTpl('${esc(t.id)}')" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
+      </div>
+    </div>`).join("");
+}
+
+async function saveTpl() {
+  const name = document.getElementById("tpl-name").value.trim();
+  const body = document.getElementById("tpl-body").value.trim();
+  if (!name || !body) return toast("Fill name and body", "err");
+  try {
+    let r, d;
+    if (editingTplId) {
+      r = await afetch(API+"/templates/"+editingTplId, {method:"PATCH", body: JSON.stringify({name, body})});
+    } else {
+      r = await afetch(API+"/templates", {method:"POST", body: JSON.stringify({name, body})});
+    }
+    d = await r.json();
+    if (!r.ok) return toast(d.error || "Error", "err");
+    toast(editingTplId ? "Updated ✓" : "Saved ✓");
+    cancelTplEdit();
+    loadTpls();
+  } catch(e) { toast("Server offline", "err"); }
+}
+
+function editTpl(id) {
+  const t = TPLS.find(x => x.id === id);
+  if (!t) return;
+  editingTplId = id;
+  document.getElementById("tpl-name").value = t.name;
+  document.getElementById("tpl-body").value = t.body;
+  document.getElementById("tpl-form-label").textContent = "Edit template";
+  document.getElementById("tpl-save-btn").textContent = "Update template";
+  document.getElementById("tpl-cancel-btn").style.display = "";
+  document.getElementById("tpl-name").focus();
+}
+
+function cancelTplEdit() {
+  editingTplId = null;
+  document.getElementById("tpl-name").value = "";
+  document.getElementById("tpl-body").value = "";
+  document.getElementById("tpl-form-label").textContent = "New template";
+  document.getElementById("tpl-save-btn").textContent = "Save template";
+  document.getElementById("tpl-cancel-btn").style.display = "none";
+}
+
+async function deleteTpl(id) {
+  try {
+    const r = await afetch(API+"/templates/"+id, {method:"DELETE"});
+    if (!r.ok) return toast("Could not delete", "err");
+    toast("Deleted");
+    loadTpls();
+  } catch(e) { toast("Server offline", "err"); }
+}
+
+async function useTpl(id) {
+  try {
+    const r = await afetch(API+"/templates/"+id+"/use", {method:"POST"});
+    const d = await r.json();
+    if (!r.ok) return toast("Error", "err");
+    document.getElementById("s-msg").value = d.body;
+    go("schedule");
+    toast("Template applied ✓");
+  } catch(e) { toast("Server offline", "err"); }
+}
+
+chkStatus();loadQ();loadTrash();lAR();loadTpls();
 setInterval(chkStatus,8000);
 setInterval(loadQ,12000);
 setInterval(loadTrash,15000);
