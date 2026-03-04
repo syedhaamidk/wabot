@@ -742,7 +742,8 @@ html,body{
                 <button class="cp-btn" id="s-cp-btn" onclick="toggleContactPicker('s')" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Contacts</button>
               </div>
               <input type="hidden" id="s-to-name" value=""/>
-
+              <div class="cp-dd" id="s-cp-dropdown" style="display:none"></div>
+            </div>
             <div class="f">
               <label>Message</label>
               <textarea id="s-msg" placeholder="What do you want to say?"></textarea>
@@ -916,6 +917,7 @@ html,body{
           <button class="cp-btn" id="e-cp-btn" onclick="toggleContactPicker('e')" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Contacts</button>
         </div>
         <input type="hidden" id="e-to-name" value=""/>
+        <div class="cp-dd" id="e-cp-dropdown" style="display:none"></div>
       </div>
       <div class="f"><label>Message</label><textarea id="e-msg"></textarea></div>
       <div class="f"><label>Send at</label><div class="cal-wrap"><input id="e-at" placeholder="Pick date &amp; time…" readonly/><span class="cal-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span></div></div>
@@ -1021,7 +1023,6 @@ function go(p){
   });
   if(p==="trash")loadTrash();
   if(p==="templates")loadTpls();
-  if(p==="autoreply")lAR();
   if(p==="setup"){
     loadQR();
     clearInterval(qrPollInterval);
@@ -1153,13 +1154,7 @@ function renderTrash(){
     </div>`;
   }).join("");
 }
-async function loadTrash(){
-  try {
-    const r = await afetch(API+"/trash");
-    if (!r.ok) { toast("Trash API error ("+r.status+")","err"); return; }
-    TRASH = await r.json(); renderTrash();
-  } catch(e){ toast("Could not load trash","err"); }
-}
+async function loadTrash(){try{TRASH=await(await afetch(API+"/trash")).json();renderTrash();}catch(e){}}
 async function restoreMsg(id){
   try{const r=await afetch(API+"/trash/"+id+"/restore",{method:"POST"});if(!r.ok)return toast("Could not restore","err");toast("Restored ✓");await loadQ();await loadTrash();}
   catch(e){toast("Server offline","err");}
@@ -1236,9 +1231,7 @@ async function delMsg(id){
 /* ── Auto-reply ── */
 async function lAR(){
   try{
-    const r = await afetch(API+"/autoreply");
-    if (!r.ok) { toast("Auto-reply API error ("+r.status+")","err"); return; }
-    const c = await r.json();
+    const c=await(await afetch(API+"/autoreply")).json();
     document.getElementById("ar-on").checked=c.enabled;
     document.getElementById("ar-grp").checked=c.replyToGroups;
     document.getElementById("ar-tb").checked=c.schedule.enabled;
@@ -1247,7 +1240,7 @@ async function lAR(){
     document.getElementById("ar-cool").value=c.cooldownMinutes;
     document.getElementById("ar-msg").value=c.busyMessage;
     tTF();
-  }catch(e){toast("Could not load auto-reply settings","err");}
+  }catch(e){}
 }
 async function sAR(){
   const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
@@ -1310,38 +1303,26 @@ function positionDropdown(prefix) {
   const dd  = document.getElementById(prefix+"-cp-dd");
   if (!btn || !dd) return;
   const rect = btn.getBoundingClientRect();
+  const spaceRight = window.innerWidth - rect.right;
+  const spaceLeft  = rect.left;
   const ddW = 280;
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const spaceAbove = rect.top;
-  // Horizontal: prefer aligning to button's right edge, clamp to viewport
-  let left = Math.min(rect.right - ddW, window.innerWidth - ddW - 8);
-  left = Math.max(8, left);
-  // Vertical: below button if room, otherwise above
-  let top;
-  if (spaceBelow >= 300 || spaceBelow >= spaceAbove) {
-    top = rect.bottom + 4;
+  // Try to place to the right of the button; if not enough room, left
+  let left;
+  if (spaceRight >= ddW + 8) {
+    left = rect.right + 8;
+  } else if (spaceLeft >= ddW + 8) {
+    left = rect.left - ddW - 8;
   } else {
-    top = Math.max(8, rect.top - Math.min(300, spaceAbove) - 4);
+    // Fallback: below the button, full available width
+    left = Math.max(8, Math.min(rect.left, window.innerWidth - ddW - 8));
   }
+  const top = Math.min(rect.bottom + 4, window.innerHeight - 340);
   dd.style.left = left + "px";
-  dd.style.top  = top + "px";
-}
-
-function getOrCreateDD(prefix) {
-  let dd = document.getElementById(prefix+"-cp-dd");
-  if (!dd) {
-    dd = document.createElement("div");
-    dd.id = prefix+"-cp-dd";
-    dd.className = "cp-dd";
-    dd.style.display = "none";
-    // Mount on body so backdrop-filter stacking contexts don't clip it
-    document.body.appendChild(dd);
-  }
-  return dd;
+  dd.style.top  = Math.max(8, top) + "px";
 }
 
 async function toggleContactPicker(prefix){
-  const dropdown = getOrCreateDD(prefix);
+  const dropdown = document.getElementById(prefix+"-cp-dd");
   if (dropdown.style.display !== "none") { closeContactPicker(prefix); return; }
   cpOpen = prefix;
   dropdown.style.display = "block";
@@ -1383,9 +1364,7 @@ function renderContactDropdown(prefix, list, query){
   const si = document.getElementById("cp-si-"+prefix);
   if (si) {
     si.addEventListener("input", function(){
-      const q = this.value;
-      if (contacts) renderContactDropdown(prefix, contacts, q);
-      else loadContacts().then(l => renderContactDropdown(prefix, l, q));
+      loadContacts().then(l => renderContactDropdown(prefix, l, this.value));
     });
     // Don't auto-focus on mobile (prevents keyboard jump)
     if (window.innerWidth > 640) setTimeout(()=>si.focus(),30);
@@ -1414,23 +1393,18 @@ function onToInput(val){
 // Close on outside click
 document.addEventListener("click", e => {
   if (!cpOpen) return;
-  const btn  = document.getElementById(cpOpen+"-cp-btn");
+  const wrap = document.getElementById(cpOpen+"-to-wrap");
   const dd   = document.getElementById(cpOpen+"-cp-dd");
-  if (btn && !btn.contains(e.target) && dd && !dd.contains(e.target)) closeContactPicker(cpOpen);
+  if (wrap && !wrap.contains(e.target) && dd && !dd.contains(e.target)) closeContactPicker(cpOpen);
 });
 // Reposition on scroll/resize
 window.addEventListener("resize", ()=>{ if (cpOpen) positionDropdown(cpOpen); });
-window.addEventListener("scroll", ()=>{ if (cpOpen) positionDropdown(cpOpen); }, true);
 
 // ── Templates ──
 let TPLS = [], editingTplId = null;
 
 async function loadTpls() {
-  try {
-    const r = await afetch(API+"/templates");
-    if (!r.ok) { toast("Templates API not available ("+r.status+")","err"); return; }
-    TPLS = await r.json(); renderTpls();
-  } catch(e) { toast("Could not load templates","err"); }
+  try { TPLS = await (await afetch(API+"/templates")).json(); renderTpls(); } catch(e) {}
 }
 
 function renderTpls() {
