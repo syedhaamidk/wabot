@@ -5,7 +5,16 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const path = require("path");
-const { scheduleMessage, cancelScheduledMessage, getScheduledMessages, restoreJobs } = require("./scheduler");
+const {
+  scheduleMessage,
+  editScheduledMessage,
+  cancelScheduledMessage,
+  restoreFromTrash,
+  permanentlyDelete,
+  getScheduledMessages,
+  getTrashedMessages,
+  restoreJobs
+} = require("./scheduler");
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
 
 // ── WhatsApp Client ──────────────────────────────
@@ -34,7 +43,7 @@ client.on("qr", async (qr) => {
 client.on("ready", () => {
   latestQR = null;
   console.log("WhatsApp client is ready!");
-  restoreJobs(client); // ← add this line
+  restoreJobs(client);
 });
 
 client.on("message", async (msg) => {
@@ -48,11 +57,12 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
 
-// QR code page (for Railway deployment)
+// QR code page
 app.get("/qr", (req, res) => {
   if (!latestQR) return res.send("No QR available — already connected or wait a few seconds and refresh.");
   res.send(`
@@ -66,12 +76,12 @@ app.get("/qr", (req, res) => {
   `);
 });
 
-// Status
+// ── Status ───────────────────────────────────────
 app.get("/api/status", (req, res) => {
   res.json({ connected: client.info ? true : false, info: client.info || null });
 });
 
-// Scheduled messages
+// ── Scheduled messages ───────────────────────────
 app.get("/api/scheduled", (req, res) => {
   res.json(getScheduledMessages());
 });
@@ -87,13 +97,46 @@ app.post("/api/scheduled", (req, res) => {
   res.json({ success: true, job });
 });
 
+// Edit a pending message
+app.patch("/api/scheduled/:id", (req, res) => {
+  const { recipient, message, sendAt } = req.body;
+  if (!recipient || !message || !sendAt)
+    return res.status(400).json({ error: "recipient, message and sendAt are required." });
+  const sendTime = new Date(sendAt);
+  if (isNaN(sendTime) || sendTime <= new Date())
+    return res.status(400).json({ error: "sendAt must be a valid future date." });
+  const job = editScheduledMessage(client, req.params.id, { recipient, message, sendAt: sendTime });
+  if (!job) return res.status(404).json({ error: "Job not found or not editable (already sent/failed)." });
+  res.json({ success: true, job });
+});
+
+// Soft-delete (move to trash)
 app.delete("/api/scheduled/:id", (req, res) => {
   const result = cancelScheduledMessage(req.params.id);
   if (!result) return res.status(404).json({ error: "Not found." });
   res.json({ success: true });
 });
 
-// Auto-reply
+// ── Trash ────────────────────────────────────────
+app.get("/api/trash", (req, res) => {
+  res.json(getTrashedMessages());
+});
+
+// Restore from trash
+app.post("/api/trash/:id/restore", (req, res) => {
+  const job = restoreFromTrash(client, req.params.id);
+  if (!job) return res.status(404).json({ error: "Not found in trash." });
+  res.json({ success: true, job });
+});
+
+// Permanently delete from trash
+app.delete("/api/trash/:id", (req, res) => {
+  const result = permanentlyDelete(req.params.id);
+  if (!result) return res.status(404).json({ error: "Not found in trash." });
+  res.json({ success: true });
+});
+
+// ── Auto-reply ───────────────────────────────────
 app.get("/api/autoreply", (req, res) => {
   res.json(getAutoReplyConfig());
 });
@@ -103,7 +146,7 @@ app.put("/api/autoreply", (req, res) => {
   res.json({ success: true, config: getAutoReplyConfig() });
 });
 
-// Start
+// ── Start ────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
