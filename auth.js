@@ -95,4 +95,85 @@ function requireAuth(req, res, next) {
   next();
 }
 
-module.exports = { signup, login, requireAuth, verifyToken };
+// see bottom for full exports
+
+// ─── GOOGLE OAUTH ───────────────────────────────────────────────────────────
+// Required env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_URL
+// e.g. BASE_URL=https://yourapp.up.railway.app
+
+function googleAuthURL() {
+  const params = new URLSearchParams({
+    client_id:     process.env.GOOGLE_CLIENT_ID,
+    redirect_uri:  process.env.BASE_URL + "/api/auth/google/callback",
+    response_type: "code",
+    scope:         "openid email profile",
+    access_type:   "offline",
+    prompt:        "select_account",
+  });
+  return "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString();
+}
+
+function httpsGet(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, res => {
+      let data = "";
+      res.on("data", c => data += c);
+      res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+    }).on("error", reject);
+  });
+}
+
+function httpsPost(url, body) {
+  return new Promise((resolve, reject) => {
+    const payload = new URLSearchParams(body).toString();
+    const u = new URL(url);
+    const opts = {
+      hostname: u.hostname, path: u.pathname, method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(payload) }
+    };
+    const req = https.request(opts, res => {
+      let data = "";
+      res.on("data", c => data += c);
+      res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+    });
+    req.on("error", reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+async function googleCallback(code) {
+  // Exchange code for tokens
+  const tokens = await httpsPost("https://oauth2.googleapis.com/token", {
+    code,
+    client_id:     process.env.GOOGLE_CLIENT_ID,
+    client_secret: process.env.GOOGLE_CLIENT_SECRET,
+    redirect_uri:  process.env.BASE_URL + "/api/auth/google/callback",
+    grant_type:    "authorization_code",
+  });
+
+  if (tokens.error) throw new Error(tokens.error_description || tokens.error);
+
+  // Fetch user info
+  const info = await httpsGet(
+    "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + tokens.access_token
+  );
+
+  if (!info.email) throw new Error("Could not get email from Google.");
+
+  // Upsert user — Google users have no password/salt
+  const users = loadUsers();
+  const key   = info.email.toLowerCase().trim();
+  if (!users[key]) {
+    const id = crypto.randomUUID();
+    users[key] = { id, email: key, provider: "google", createdAt: new Date().toISOString() };
+    saveUsers(users);
+    const userDir = path.join(DATA_DIR, id);
+    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+  }
+
+  const user = users[key];
+  return { token: signToken({ id: user.id, email: key }), id: user.id, email: key };
+}
+
+module.exports = { signup, login, requireAuth, verifyToken, googleAuthURL, googleCallback };

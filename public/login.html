@@ -87,6 +87,12 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
 .loading .spinner{display:block}
 .loading .btn-txt{display:none}
 
+/* GOOGLE BTN */
+.btn-google{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(240,253,244,.85);margin-top:0}
+.btn-google:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);transform:translateY(-1px)}
+.or-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:rgba(240,253,244,.18);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+.or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:rgba(34,197,94,.07)}
+
 /* DIVIDER */
 .divider{display:flex;align-items:center;gap:12px;margin-top:24px;color:rgba(240,253,244,.15);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400}
 .divider::before,.divider::after{content:"";flex:1;height:1px;background:rgba(34,197,94,.07)}
@@ -189,6 +195,11 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
         <div style="text-align:center;margin-top:14px">
           <a href="#" style="font-size:12px;color:rgba(240,253,244,.28);text-decoration:none;font-weight:400;letter-spacing:.1px;transition:color .2s" onmouseover="this.style.color='rgba(74,222,128,.7)'" onmouseout="this.style.color='rgba(240,253,244,.28)'">Forgot password?</a>
         </div>
+        <div class="or-divider">or</div>
+        <a href="/api/auth/google" class="btn btn-google" style="text-decoration:none">
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.58-13.46-8.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/></svg>
+          Continue with Google
+        </a>
       </div>
 
       <!-- Signup -->
@@ -205,6 +216,11 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
           <div class="spinner"></div>
           <span class="btn-txt">Create account →</span>
         </button>
+        <div class="or-divider">or</div>
+        <a href="/api/auth/google" class="btn btn-google" style="text-decoration:none">
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.58-13.46-8.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/></svg>
+          Continue with Google
+        </a>
       </div>
 
       <div class="divider">end-to-end encrypted session</div>
