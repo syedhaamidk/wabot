@@ -114,6 +114,13 @@ function restoreExistingSessions() {
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+// ── Pages (before static so / always serves login, not a public/index.html) ───
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 // ── Auth routes (public) ─────────────────────────────────────────────────────
@@ -165,7 +172,8 @@ app.post("/api/logout-whatsapp", async (req, res) => {
     await session.client.logout();
     session.status = "disconnected";
     session.qr = null;
-    // Re-initialize so they get a fresh QR
+    // Delete from map so createClient can reinitialize properly
+    userSessions.delete(req.user.id);
     setTimeout(() => createClient(req.user.id), 2000);
     res.json({ success: true });
   } catch(e) {
@@ -268,15 +276,6 @@ app.get("/api/autoreply", (req, res) => {
 app.put("/api/autoreply", (req, res) => {
   updateAutoReplyConfig(req.user.id, req.body);
   res.json({ success: true, config: getAutoReplyConfig(req.user.id) });
-});
-
-// ── Pages ─────────────────────────────────────────────────────────────────────
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-
-app.get("/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

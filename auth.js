@@ -2,16 +2,23 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const USERS_FILE = path.join(__dirname, "data", "users.json");
+// ── Use DATA_DIR env var if set (e.g. Railway Volume mount), else local data/ ─
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 // ── Ensure data dir exists ───────────────────────────────────────────────────
 function ensureDataDir() {
-  const dir = path.join(__dirname, "data");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 // ── Simple JWT (no external deps) ───────────────────────────────────────────
-const JWT_SECRET = process.env.JWT_SECRET || "wabot-secret-change-in-production-" + Math.random();
+// JWT_SECRET must be set as an env variable — never rely on Math.random() as
+// that generates a new secret on every server restart, invalidating all tokens.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("[auth] FATAL: JWT_SECRET environment variable is not set. Please add it in Railway → Variables.");
+  process.exit(1);
+}
 
 function base64url(str) {
   return Buffer.from(str).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -70,7 +77,7 @@ function signup(email, password) {
   users[key] = { id, email: key, hash, salt, createdAt: new Date().toISOString() };
   saveUsers(users);
   // Create user data dir
-  const userDir = path.join(__dirname, "data", id);
+  const userDir = path.join(DATA_DIR, id);
   if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
   return { token: signToken({ id, email: key }), id, email: key };
 }
