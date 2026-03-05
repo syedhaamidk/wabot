@@ -390,6 +390,7 @@ html,body{
 .cp-btn:hover{background:var(--em);color:#000}
 .cp-dd{
   position:fixed;z-index:200;width:268px;
+  direction:ltr;text-align:left;
   background:rgba(8,12,22,.93);border-radius:14px;
   box-shadow:0 20px 64px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);
   backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
@@ -1305,7 +1306,6 @@ function getInitials(displayName) {
   return displayName.replace(/[^a-zA-Z0-9]/g,"").slice(0,2).toUpperCase() || "?";
 }
 
-// ── Contact Picker helpers ──
 function getOrCreateDD(prefix) {
   let dd = document.getElementById(prefix+"-cp-dd");
   if (!dd) {
@@ -1313,8 +1313,8 @@ function getOrCreateDD(prefix) {
     dd.id = prefix+"-cp-dd";
     dd.className = "cp-dd";
     dd.style.display = "none";
-    // Mount directly on body so backdrop-filter stacking contexts can't clip it
-    document.body.appendChild(dd);
+    dd.style.direction = "ltr";
+    document.body.appendChild(dd); // mount on body — escapes backdrop-filter stacking context
   }
   return dd;
 }
@@ -1325,14 +1325,13 @@ function positionDropdown(prefix) {
   if (!btn || !dd) return;
   const rect = btn.getBoundingClientRect();
   const ddW = 280, ddH = 320;
-  // Horizontal: align to button right edge, clamp inside viewport
-  let left = Math.min(rect.right - ddW, window.innerWidth - ddW - 8);
+  // Always open to the RIGHT of the button; clamp so it doesn't overflow viewport
+  let left = rect.right + 8;
+  if (left + ddW > window.innerWidth - 8) left = window.innerWidth - ddW - 8;
   left = Math.max(8, left);
-  // Vertical: prefer below, fall back to above
+  // Vertical: below button; flip above if not enough room
   let top = rect.bottom + 4;
-  if (top + ddH > window.innerHeight && rect.top - ddH > 8) {
-    top = rect.top - ddH - 4;
-  }
+  if (top + ddH > window.innerHeight && rect.top - ddH > 8) top = rect.top - ddH - 4;
   dd.style.left = left + "px";
   dd.style.top  = Math.max(8, top) + "px";
 }
@@ -1362,7 +1361,8 @@ function renderContactDropdown(prefix, list, query){
     ? list.filter(c => getDisplayName(c).toLowerCase().includes(q) || (c.number||"").includes(q))
     : list;
 
-  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" dir="ltr" value="${esc(query||"")}"/></div>`;
+  // dir=ltr + unicode-bidi=isolate forces LTR even on RTL system browsers
+  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" dir="ltr" style="unicode-bidi:isolate;direction:ltr;text-align:left" value="${esc(query||"")}"/></div>`;
 
   const bodyHtml = !filtered.length
     ? `<div class="cp-empty">${q ? 'No results for "' + esc(q) + '"' : "No contacts"}</div>`
@@ -1371,7 +1371,7 @@ function renderContactDropdown(prefix, list, query){
         const inits = getInitials(name);
         return `<div class="cp-item" data-num="${esc(c.number)}" data-name="${esc(name)}">
           <div class="cp-av">${esc(inits)}</div>
-          <div style="min-width:0"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div>
+          <div style="min-width:0;direction:ltr;text-align:left"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div>
         </div>`;
       }).join("");
 
@@ -1423,9 +1423,9 @@ let TPLS = [], editingTplId = null;
 async function loadTpls() {
   try {
     const r=await afetch(API+"/templates");
-    if(!r.ok){toast("Templates API error ("+r.status+") — check templates_routes.js is wired into index.js","err");return;}
+    if(!r.ok){toast("Templates API error ("+r.status+")","err");return;}
     TPLS=await r.json();renderTpls();
-  } catch(e){toast("Could not load templates","err");}
+  }catch(e){toast("Could not load templates","err");}
 }
 
 function renderTpls() {
