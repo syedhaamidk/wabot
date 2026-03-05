@@ -398,7 +398,7 @@ html,body{
 }
 [data-theme="light"] .cp-dd{background:rgba(240,242,248,.96)}
 .cp-search-wrap{padding:9px 13px;border-bottom:1px solid var(--sep);position:sticky;top:0;background:inherit;z-index:1}
-.cp-search-wrap input{font-size:13px;width:100%;background:transparent;color:var(--text)}
+.cp-search-wrap input{font-size:13px;width:100%;background:transparent;color:var(--text);direction:ltr!important;text-align:left!important;unicode-bidi:plaintext}
 .cp-search-wrap input::placeholder{color:var(--sub)}
 .cp-item{display:flex;align-items:center;gap:9px;padding:8px 13px;cursor:pointer;transition:.1s}
 .cp-item:hover{background:rgba(255,255,255,.04)}
@@ -1314,6 +1314,7 @@ function getOrCreateDD(prefix) {
     dd.className = "cp-dd";
     dd.style.display = "none";
     dd.style.direction = "ltr";
+    dd.setAttribute("dir", "ltr");
     document.body.appendChild(dd); // mount on body — escapes backdrop-filter stacking context
   }
   return dd;
@@ -1361,8 +1362,7 @@ function renderContactDropdown(prefix, list, query){
     ? list.filter(c => getDisplayName(c).toLowerCase().includes(q) || (c.number||"").includes(q))
     : list;
 
-  // dir=ltr + unicode-bidi=isolate forces LTR even on RTL system browsers
-  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" dir="ltr" style="unicode-bidi:isolate;direction:ltr;text-align:left" value="${esc(query||"")}"/></div>`;
+  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search…" autocomplete="off" dir="ltr" inputmode="text" style="direction:ltr!important;text-align:left!important;unicode-bidi:plaintext" value="${esc(query||"")}"/></div>`;
 
   const bodyHtml = !filtered.length
     ? `<div class="cp-empty">${q ? 'No results for "' + esc(q) + '"' : "No contacts"}</div>`
@@ -1379,6 +1379,11 @@ function renderContactDropdown(prefix, list, query){
 
   const si = document.getElementById("cp-si-"+prefix);
   if (si) {
+    // Force LTR in JS — most reliable override for RTL system browsers
+    si.setAttribute("dir", "ltr");
+    si.style.direction = "ltr";
+    si.style.textAlign = "left";
+    si.style.unicodeBidi = "plaintext";
     si.addEventListener("input", function(){
       const q = this.value;
       if (contacts) renderContactDropdown(prefix, contacts, q);
