@@ -130,11 +130,8 @@ function validateRecipient(r) {
 const app = express();
 
 // Security headers
-// Security headers (CSP disabled — pages use inline scripts and external CDNs)
 app.use(helmet({ contentSecurityPolicy: false }));
 
-// CORS — open for now, lock down with BASE_URL once stable
-app.use(cors({ origin: true, credentials: true }));
 // CORS — restrict to your own origin in production
 const ALLOWED_ORIGIN = process.env.BASE_URL || "http://localhost:3000";
 app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
@@ -185,16 +182,9 @@ app.get("/api/auth/google/callback", async (req, res) => {
   try {
     const { token, id, email } = await googleCallback(req.query.code);
     if (!userSessions.has(id)) createClient(id);
-    // Use JSON.stringify to safely embed values — prevents XSS via special characters in email
-    const safeData = JSON.stringify({ token, email });
-    res.send(`<!DOCTYPE html><html><head><script>
-      (function(){
-        var d=${safeData};
-        localStorage.setItem("wabot-token", d.token);
-        localStorage.setItem("wabot-email", d.email);
-        window.location.href="/dashboard";
-      })();
-    </script></head><body></body></html>`);
+    // Pass token via URL hash — never sent to server, picked up by dashboard JS (CSP-safe)
+    const params = new URLSearchParams({ t: token, e: email });
+    res.redirect("/dashboard#oauth=" + Buffer.from(params.toString()).toString("base64"));
   } catch(e) {
     console.error("[Google OAuth]", e.message);
     res.redirect("/?error=" + encodeURIComponent("Google sign-in failed. Please try again."));
