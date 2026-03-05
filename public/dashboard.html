@@ -217,6 +217,33 @@ html,body{
 .sb-email{font-size:11px;color:var(--sub);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .sb-signout{font-size:11px;font-weight:600;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;flex-shrink:0;padding:1px 3px;opacity:.8;transition:.15s;white-space:nowrap}
 .sb-signout:hover{opacity:1}
+
+/* Icon-only sign out shown when collapsed */
+.sb-signout-ic{
+  width:28px;height:28px;border-radius:8px;
+  background:none;border:none;cursor:pointer;
+  color:var(--sub);display:none;place-items:center;
+  transition:.14s;flex-shrink:0;font-family:inherit;
+  opacity:.5;
+}
+.sb-signout-ic:hover{background:var(--red-bg);color:var(--red);opacity:1}
+.sb:not(.sb-expanded) .sb-signout-ic{display:grid}
+
+/* Disconnect button */
+.sb-disc{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:9px;
+  background:var(--g);border:1px solid var(--gb);
+  margin-bottom:7px;cursor:pointer;
+  font-size:11.5px;font-weight:500;
+  color:var(--sub);transition:.14s;width:100%;
+  font-family:inherit;overflow:hidden;
+}
+.sb-disc:hover{background:var(--red-bg);border-color:rgba(255,83,112,.22);color:var(--red)}
+.sb-disc svg{flex-shrink:0}
+.sb-disc-lbl{white-space:nowrap;overflow:hidden}
+.sb:not(.sb-expanded) .sb-disc{justify-content:center;padding:8px 0;background:transparent;border-color:transparent;margin-bottom:7px}
+.sb:not(.sb-expanded) .sb-disc-lbl{display:none}
 .conn-pill{
   display:flex;align-items:center;gap:7px;
   padding:8px 10px;border-radius:9px;
@@ -237,17 +264,65 @@ html,body{
 @keyframes ping{0%,100%{box-shadow:0 0 0 0 rgba(26,237,130,.5)}60%{box-shadow:0 0 0 4px rgba(26,237,130,0)}}
 .conn-text{font-size:11.5px;font-weight:500;color:var(--sub);white-space:nowrap;min-width:0}
 .conn-text.on{color:var(--em)}
-.sb-disconnect{
-  width:22px;height:22px;border-radius:6px;
-  background:none;border:none;cursor:pointer;
-  color:var(--sub);display:grid;place-items:center;
-  flex-shrink:0;transition:.14s;padding:0;margin-left:auto;
-  opacity:.5;
+
+/* Account button */
+.sb-acct{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:9px;
+  background:var(--g);border:1px solid var(--gb);
+  cursor:pointer;transition:.14s;position:relative;
+  overflow:hidden;
 }
-.sb-disconnect:hover{background:var(--red-bg);color:var(--red);opacity:1}
-/* In collapsed mode: center it below the dot */
-.sb:not(.sb-expanded) .conn-pill{flex-direction:column;gap:4px}
-.sb:not(.sb-expanded) .sb-disconnect{margin-left:0;opacity:.4}
+.sb-acct:hover{background:var(--gh)}
+.sb-acct-av{
+  width:24px;height:24px;border-radius:7px;flex-shrink:0;
+  background:var(--em-bg);border:1px solid var(--em-bd);
+  color:var(--em);display:grid;place-items:center;
+}
+.sb-acct-email{font-size:11px;color:var(--sub);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.sb-acct-chev{flex-shrink:0;color:var(--sub);transition:transform .2s}
+.sb-acct.open .sb-acct-chev{transform:rotate(180deg)}
+
+/* Collapsed state: just show avatar */
+.sb:not(.sb-expanded) .sb-acct{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
+.sb:not(.sb-expanded) .sb-acct-email,.sb:not(.sb-expanded) .sb-acct-chev{display:none}
+
+/* Popup menu — mounted on body via JS */
+.sb-acct-menu{
+  position:fixed;z-index:300;width:220px;
+  background:rgba(8,12,22,.96);border:1px solid var(--gb);
+  border-radius:12px;padding:5px;
+  box-shadow:0 16px 48px rgba(0,0,0,.5);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  animation:fadeup .15s ease;
+}
+[data-theme="light"] .sb-acct-menu{background:rgba(240,242,248,.97)}
+.sb-acct-item{
+  display:flex;align-items:center;gap:9px;
+  width:100%;padding:9px 11px;border-radius:8px;
+  background:none;border:none;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--text2);
+  font-family:inherit;text-align:left;transition:.12s;
+}
+.sb-acct-item:hover{background:var(--g);color:var(--text)}
+.sb-acct-danger{color:var(--red)!important}
+.sb-acct-danger:hover{background:var(--red-bg)!important;color:var(--red)!important}
+.sb-acct-sep{height:1px;background:var(--sep);margin:3px 0}
+
+/* Disconnect button in sidebar */
+.sb-disc{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:9px;
+  background:var(--g);border:1px solid var(--gb);
+  margin-bottom:7px;cursor:pointer;
+  font-size:11.5px;font-weight:500;
+  color:var(--sub);transition:.14s;width:100%;
+  font-family:inherit;
+}
+.sb-disc:hover{background:var(--red-bg);border-color:rgba(255,83,112,.22);color:var(--red)}
+.sb-disc-lbl{white-space:nowrap;overflow:hidden}
+.sb:not(.sb-expanded) .sb-disc{justify-content:center;padding:8px 0;background:transparent;border-color:transparent}
+.sb:not(.sb-expanded) .sb-disc-lbl{display:none}
 .theme-toggle{
   display:flex;align-items:center;justify-content:space-between;
   padding:7px 10px;border-radius:9px;background:var(--g);border:1px solid var(--gb);cursor:pointer;transition:.14s;
@@ -401,7 +476,6 @@ html,body{
 .cp-btn:hover{background:var(--em);color:#000}
 .cp-dd{
   position:fixed;z-index:200;width:268px;
-  direction:ltr;text-align:left;
   background:rgba(8,12,22,.93);border-radius:14px;
   box-shadow:0 20px 64px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);
   backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
@@ -409,7 +483,7 @@ html,body{
 }
 [data-theme="light"] .cp-dd{background:rgba(240,242,248,.96)}
 .cp-search-wrap{padding:9px 13px;border-bottom:1px solid var(--sep);position:sticky;top:0;background:inherit;z-index:1}
-.cp-search-wrap input{font-size:13px;width:100%;background:transparent;color:var(--text);direction:ltr!important;text-align:left!important;unicode-bidi:plaintext}
+.cp-search-wrap input{font-size:13px;width:100%;background:transparent;color:var(--text)}
 .cp-search-wrap input::placeholder{color:var(--sub)}
 .cp-item{display:flex;align-items:center;gap:9px;padding:8px 13px;cursor:pointer;transition:.1s}
 .cp-item:hover{background:rgba(255,255,255,.04)}
@@ -687,20 +761,33 @@ html,body{
   </nav>
 
   <div class="sb-foot">
-    <div class="sb-user">
-      <span class="sb-email" id="sb-email">Loading…</span>
-      <button class="sb-signout" onclick="doLogout()">Sign out</button>
-    </div>
     <div class="conn-pill">
       <div class="conn-dot" id="sb-dot"></div>
       <div class="conn-text" id="sb-lbl">Checking…</div>
-      <button class="sb-disconnect" id="sb-disconnect-btn" onclick="disconnectWA()" title="Disconnect WhatsApp">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </button>
     </div>
     <div class="theme-toggle" onclick="toggleTheme()">
       <div class="theme-toggle-lbl" id="theme-label">Light mode</div>
       <div class="theme-toggle-ic" id="theme-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+    </div>
+    <!-- Single account button -->
+    <div class="sb-acct" id="sb-acct-btn" onclick="toggleAcctMenu(event)">
+      <div class="sb-acct-av">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <span class="sb-acct-email" id="sb-email">Loading…</span>
+      <svg class="sb-acct-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+    <!-- Popup menu -->
+    <div class="sb-acct-menu" id="sb-acct-menu" style="display:none">
+      <button class="sb-acct-item" onclick="disconnectWA()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+        Disconnect WhatsApp
+      </button>
+      <div class="sb-acct-sep"></div>
+      <button class="sb-acct-item sb-acct-danger" onclick="doLogout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </button>
     </div>
   </div>
 </aside>
@@ -757,6 +844,7 @@ html,body{
                 <button class="cp-btn" id="s-cp-btn" onclick="toggleContactPicker('s')" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Contacts</button>
               </div>
               <input type="hidden" id="s-to-name" value=""/>
+              <div class="cp-dd" id="s-cp-dropdown" style="display:none"></div>
             </div>
             <div class="f">
               <label>Message</label>
@@ -931,6 +1019,7 @@ html,body{
           <button class="cp-btn" id="e-cp-btn" onclick="toggleContactPicker('e')" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Contacts</button>
         </div>
         <input type="hidden" id="e-to-name" value=""/>
+        <div class="cp-dd" id="e-cp-dropdown" style="display:none"></div>
       </div>
       <div class="f"><label>Message</label><textarea id="e-msg"></textarea></div>
       <div class="f"><label>Send at</label><div class="cal-wrap"><input id="e-at" placeholder="Pick date &amp; time…" readonly/><span class="cal-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span></div></div>
@@ -1036,7 +1125,6 @@ function go(p){
   });
   if(p==="trash")loadTrash();
   if(p==="templates")loadTpls();
-  if(p==="autoreply")lAR();
   if(p==="setup"){
     loadQR();
     clearInterval(qrPollInterval);
@@ -1168,13 +1256,7 @@ function renderTrash(){
     </div>`;
   }).join("");
 }
-async function loadTrash(){
-  try{
-    const r=await afetch(API+"/trash");
-    if(!r.ok){toast("Trash API error ("+r.status+")","err");return;}
-    TRASH=await r.json();renderTrash();
-  }catch(e){toast("Could not load trash","err");}
-}
+async function loadTrash(){try{TRASH=await(await afetch(API+"/trash")).json();renderTrash();}catch(e){}}
 async function restoreMsg(id){
   try{const r=await afetch(API+"/trash/"+id+"/restore",{method:"POST"});if(!r.ok)return toast("Could not restore","err");toast("Restored ✓");await loadQ();await loadTrash();}
   catch(e){toast("Server offline","err");}
@@ -1251,9 +1333,7 @@ async function delMsg(id){
 /* ── Auto-reply ── */
 async function lAR(){
   try{
-    const r=await afetch(API+"/autoreply");
-    if(!r.ok){toast("Auto-reply API error ("+r.status+")","err");return;}
-    const c=await r.json();
+    const c=await(await afetch(API+"/autoreply")).json();
     document.getElementById("ar-on").checked=c.enabled;
     document.getElementById("ar-grp").checked=c.replyToGroups;
     document.getElementById("ar-tb").checked=c.schedule.enabled;
@@ -1262,7 +1342,7 @@ async function lAR(){
     document.getElementById("ar-cool").value=c.cooldownMinutes;
     document.getElementById("ar-msg").value=c.busyMessage;
     tTF();
-  }catch(e){toast("Could not load auto-reply settings","err");}
+  }catch(e){}
 }
 async function sAR(){
   const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
@@ -1279,23 +1359,72 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSb();closeEdit
 const userEmail = localStorage.getItem("wabot-email") || "";
 document.getElementById("sb-email").textContent = userEmail || "Account";
 
+// ── Account menu ──
+let acctMenuOpen = false;
+function toggleAcctMenu(e) {
+  e.stopPropagation();
+  const btn = document.getElementById("sb-acct-btn");
+  let menu = document.getElementById("sb-acct-menu");
+  // Move menu to body if still inside sidebar (escapes stacking context)
+  if (menu.parentElement !== document.body) {
+    document.body.appendChild(menu);
+  }
+  if (acctMenuOpen) { closeAcctMenu(); return; }
+  acctMenuOpen = true;
+  btn.classList.add("open");
+  // Position above the button
+  const rect = btn.getBoundingClientRect();
+  const menuH = 100;
+  menu.style.display = "block";
+  menu.style.left = rect.left + "px";
+  menu.style.top = (rect.top - menuH - 8) + "px";
+  menu.style.width = Math.max(rect.width, 200) + "px";
+}
+function closeAcctMenu() {
+  acctMenuOpen = false;
+  const btn = document.getElementById("sb-acct-btn");
+  const menu = document.getElementById("sb-acct-menu");
+  if (btn) btn.classList.remove("open");
+  if (menu) menu.style.display = "none";
+}
+document.addEventListener("click", e => {
+  if (!acctMenuOpen) return;
+  const menu = document.getElementById("sb-acct-menu");
+  const btn  = document.getElementById("sb-acct-btn");
+  if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) closeAcctMenu();
+});
+
 function doLogout(){
+  closeAcctMenu();
   localStorage.removeItem("wabot-token");
   localStorage.removeItem("wabot-email");
   window.location.href = "/";
 }
 
 async function disconnectWA(){
-  if (!confirm("Disconnect WhatsApp? You'll need to scan the QR code again.")) return;
+  closeAcctMenu();
+  if (!confirm("Disconnect WhatsApp? You'll need to scan the QR again.")) return;
   const btn = document.getElementById("sb-disconnect-btn");
-  if (btn) { btn.style.opacity = ".3"; btn.style.pointerEvents = "none"; }
+  if (btn) { btn.style.opacity=".4"; btn.style.pointerEvents="none"; }
   try {
-    const r = await afetch(API+"/logout-whatsapp", {method:"POST"});
-    toast(r.ok ? "Disconnected — scan QR to reconnect" : "Error disconnecting", r.ok ? "ok" : "err");
-    if (r.ok) { chkStatus(); setTimeout(loadQR, 2000); }
-  } catch(e){ toast("Server offline","err"); }
-  finally {
-    if (btn) { btn.style.opacity = ""; btn.style.pointerEvents = ""; }
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 10000);
+    let r;
+    try { r = await afetch(API+"/logout-whatsapp", {method:"POST", signal:ctrl.signal}); }
+    finally { clearTimeout(tid); }
+    if (r && r.ok) {
+      toast("Disconnected — scan QR to reconnect");
+      chkStatus();
+      go("setup");
+      setTimeout(loadQR, 2500);
+    } else {
+      toast("Could not disconnect", "err");
+    }
+  } catch(e){
+    if (e.name==="AbortError") { toast("Timed out — try refreshing"); chkStatus(); }
+    else toast("Server offline","err");
+  } finally {
+    if (btn) { btn.style.opacity=""; btn.style.pointerEvents=""; }
   }
 }
 
@@ -1325,39 +1454,31 @@ function getInitials(displayName) {
   return displayName.replace(/[^a-zA-Z0-9]/g,"").slice(0,2).toUpperCase() || "?";
 }
 
-function getOrCreateDD(prefix) {
-  let dd = document.getElementById(prefix+"-cp-dd");
-  if (!dd) {
-    dd = document.createElement("div");
-    dd.id = prefix+"-cp-dd";
-    dd.className = "cp-dd";
-    dd.style.display = "none";
-    dd.style.direction = "ltr";
-    dd.setAttribute("dir", "ltr");
-    document.body.appendChild(dd); // mount on body — escapes backdrop-filter stacking context
-  }
-  return dd;
-}
-
 function positionDropdown(prefix) {
   const btn = document.getElementById(prefix+"-cp-btn");
   const dd  = document.getElementById(prefix+"-cp-dd");
   if (!btn || !dd) return;
   const rect = btn.getBoundingClientRect();
-  const ddW = 280, ddH = 320;
-  // Always open to the RIGHT of the button; clamp so it doesn't overflow viewport
-  let left = rect.right + 8;
-  if (left + ddW > window.innerWidth - 8) left = window.innerWidth - ddW - 8;
-  left = Math.max(8, left);
-  // Vertical: below button; flip above if not enough room
-  let top = rect.bottom + 4;
-  if (top + ddH > window.innerHeight && rect.top - ddH > 8) top = rect.top - ddH - 4;
+  const spaceRight = window.innerWidth - rect.right;
+  const spaceLeft  = rect.left;
+  const ddW = 280;
+  // Try to place to the right of the button; if not enough room, left
+  let left;
+  if (spaceRight >= ddW + 8) {
+    left = rect.right + 8;
+  } else if (spaceLeft >= ddW + 8) {
+    left = rect.left - ddW - 8;
+  } else {
+    // Fallback: below the button, full available width
+    left = Math.max(8, Math.min(rect.left, window.innerWidth - ddW - 8));
+  }
+  const top = Math.min(rect.bottom + 4, window.innerHeight - 340);
   dd.style.left = left + "px";
   dd.style.top  = Math.max(8, top) + "px";
 }
 
 async function toggleContactPicker(prefix){
-  const dropdown = getOrCreateDD(prefix);
+  const dropdown = document.getElementById(prefix+"-cp-dd");
   if (dropdown.style.display !== "none") { closeContactPicker(prefix); return; }
   cpOpen = prefix;
   dropdown.style.display = "block";
@@ -1381,80 +1502,30 @@ function renderContactDropdown(prefix, list, query){
     ? list.filter(c => getDisplayName(c).toLowerCase().includes(q) || (c.number||"").includes(q))
     : list;
 
-  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" spellcheck="false"/></div>`;
+  const searchHtml = `<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search name or number…" autocomplete="off" dir="ltr" value="${esc(query||"")}"/></div>`;
 
-  const bodyHtml = `<div class="cp-results">` + (!filtered.length
+  const bodyHtml = !filtered.length
     ? `<div class="cp-empty">${q ? 'No results for "' + esc(q) + '"' : "No contacts"}</div>`
     : filtered.slice(0,100).map(c => {
         const name  = getDisplayName(c);
         const inits = getInitials(name);
         return `<div class="cp-item" data-num="${esc(c.number)}" data-name="${esc(name)}">
           <div class="cp-av">${esc(inits)}</div>
-          <div style="min-width:0;direction:ltr;text-align:left"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div>
+          <div style="min-width:0"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div>
         </div>`;
-      }).join("")) + `</div>`;
+      }).join("");
 
   dropdown.innerHTML = searchHtml + bodyHtml;
 
   const si = document.getElementById("cp-si-"+prefix);
   if (si) {
-    // Set value and cursor to end — fixes RTL cursor-before-text bug
-    si.value = query || "";
-    // Force LTR cursor by setting selectionStart/End to end after every paint
-    const fixCursor = () => {
-      const len = si.value.length;
-      si.setSelectionRange(len, len);
-    };
-    si.addEventListener("keydown", function(e) {
-      // Let control keys pass through normally
-      if (e.key === "Backspace") {
-        e.preventDefault();
-        const v = this.value;
-        const newVal = v.slice(0, -1);
-        this.value = newVal;
-        const l = contacts || [];
-        const q2 = newVal.toLowerCase().trim();
-        const filtered2 = q2 ? l.filter(c => getDisplayName(c).toLowerCase().includes(q2) || (c.number||"").includes(q2)) : l;
-        renderFilteredBody(prefix, dropdown, filtered2, newVal);
-        fixCursor();
-        return;
-      }
-      if (e.ctrlKey || e.metaKey || e.key.length > 1) return;
-      e.preventDefault();
-      const newVal = this.value + e.key;
-      this.value = newVal;
-      const l = contacts || [];
-      const q2 = newVal.toLowerCase().trim();
-      const filtered2 = q2 ? l.filter(c => getDisplayName(c).toLowerCase().includes(q2) || (c.number||"").includes(q2)) : l;
-      renderFilteredBody(prefix, dropdown, filtered2, newVal);
-      fixCursor();
+    si.addEventListener("input", function(){
+      loadContacts().then(l => renderContactDropdown(prefix, l, this.value));
     });
-    si.addEventListener("focus", fixCursor);
-    si.addEventListener("click", fixCursor);
-    if (window.innerWidth > 640) setTimeout(()=>{ si.focus(); fixCursor(); }, 30);
+    // Don't auto-focus on mobile (prevents keyboard jump)
+    if (window.innerWidth > 640) setTimeout(()=>si.focus(),30);
   }
 
-  dropdown.querySelectorAll(".cp-item").forEach(item => {
-    item.addEventListener("click", ()=> selectContact(prefix, item.dataset.num, item.dataset.name));
-  });
-}
-
-function renderFilteredBody(prefix, dropdown, filtered, query) {
-  // Re-render only the results list without touching the search input
-  const existing = dropdown.querySelector(".cp-results");
-  const q = (query||"").toLowerCase().trim();
-  const html = !filtered.length
-    ? `<div class="cp-results"><div class="cp-empty">${q ? 'No results for "' + esc(q) + '"' : "No contacts"}</div></div>`
-    : `<div class="cp-results">` + filtered.slice(0,100).map(c => {
-        const name  = getDisplayName(c);
-        const inits = getInitials(name);
-        return `<div class="cp-item" data-num="${esc(c.number)}" data-name="${esc(name)}">
-          <div class="cp-av">${esc(inits)}</div>
-          <div style="min-width:0;direction:ltr;text-align:left"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div>
-        </div>`;
-      }).join("") + `</div>`;
-  if (existing) existing.outerHTML = html;
-  else dropdown.insertAdjacentHTML("beforeend", html);
   dropdown.querySelectorAll(".cp-item").forEach(item => {
     item.addEventListener("click", ()=> selectContact(prefix, item.dataset.num, item.dataset.name));
   });
@@ -1478,22 +1549,18 @@ function onToInput(val){
 // Close on outside click
 document.addEventListener("click", e => {
   if (!cpOpen) return;
-  const btn = document.getElementById(cpOpen+"-cp-btn");
-  const dd  = document.getElementById(cpOpen+"-cp-dd");
-  if (btn && !btn.contains(e.target) && dd && !dd.contains(e.target)) closeContactPicker(cpOpen);
+  const wrap = document.getElementById(cpOpen+"-to-wrap");
+  const dd   = document.getElementById(cpOpen+"-cp-dd");
+  if (wrap && !wrap.contains(e.target) && dd && !dd.contains(e.target)) closeContactPicker(cpOpen);
 });
+// Reposition on scroll/resize
 window.addEventListener("resize", ()=>{ if (cpOpen) positionDropdown(cpOpen); });
-window.addEventListener("scroll", ()=>{ if (cpOpen) positionDropdown(cpOpen); }, true);
 
 // ── Templates ──
 let TPLS = [], editingTplId = null;
 
 async function loadTpls() {
-  try {
-    const r=await afetch(API+"/templates");
-    if(!r.ok){toast("Templates API error ("+r.status+")","err");return;}
-    TPLS=await r.json();renderTpls();
-  }catch(e){toast("Could not load templates","err");}
+  try { TPLS = await (await afetch(API+"/templates")).json(); renderTpls(); } catch(e) {}
 }
 
 function renderTpls() {
