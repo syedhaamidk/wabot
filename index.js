@@ -130,19 +130,11 @@ function validateRecipient(r) {
 const app = express();
 
 // Security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
-      styleSrc:   ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com"],
-      fontSrc:    ["'self'", "fonts.gstatic.com"],
-      imgSrc:     ["'self'", "data:"],
-      connectSrc: ["'self'"],
-    },
-  },
-}));
+// Security headers (CSP disabled — pages use inline scripts and external CDNs)
+app.use(helmet({ contentSecurityPolicy: false }));
 
+// CORS — open for now, lock down with BASE_URL once stable
+app.use(cors({ origin: true, credentials: true }));
 // CORS — restrict to your own origin in production
 const ALLOWED_ORIGIN = process.env.BASE_URL || "http://localhost:3000";
 app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
