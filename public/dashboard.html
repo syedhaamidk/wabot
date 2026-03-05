@@ -861,8 +861,8 @@ html,body{
         </div>
         <div>
           <div class="sec-label">Queue</div>
-          <div class="panel" id="qcard">
-            <div class="empty"><div class="empty-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg></div><p>Nothing scheduled yet</p></div>
+          <div class="panel" id="qcard" style="min-height:320px">
+            <div class="empty"><div class="empty-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg></div><p>Nothing scheduled yet</p><p style="font-size:12px;color:var(--sub);margin-top:6px;max-width:200px;line-height:1.6">Fill in the form and hit <strong>Schedule →</strong> to queue your first message.</p></div>
           </div>
         </div>
       </div>
@@ -874,33 +874,40 @@ html,body{
         <div class="ptitle">Auto-Reply</div>
         <div class="psub">Reply automatically when you're busy</div>
       </div>
-      <div class="panel" style="max-width:500px">
-        <div class="panel-shimmer"></div>
-        <div class="trow">
-          <div><div class="tl">Enable auto-reply</div><div class="td">Reply to incoming messages automatically</div></div>
-          <label class="sw"><input type="checkbox" id="ar-on" onchange="sAR()"/><div class="trk"></div></label>
-        </div>
-        <div class="trow">
-          <div><div class="tl">Include groups</div><div class="td">Also reply in group chats</div></div>
-          <label class="sw"><input type="checkbox" id="ar-grp" onchange="sAR()"/><div class="trk"></div></label>
-        </div>
-        <div class="trow">
-          <div><div class="tl">Time-based only</div><div class="td">Only active during set hours</div></div>
-          <label class="sw"><input type="checkbox" id="ar-tb" onchange="tTF();sAR()"/><div class="trk"></div></label>
-        </div>
-        <div id="tf" style="display:none">
-          <div class="f-row">
-            <div class="f"><label>From</label><input type="time" id="ar-from" value="22:00" onchange="sAR()"/></div>
-            <div class="f"><label>Until</label><input type="time" id="ar-until" value="08:00" onchange="sAR()"/></div>
+      <div class="two-col">
+        <div>
+          <div class="sec-label">Settings</div>
+          <div class="panel">
+            <div class="panel-shimmer"></div>
+            <div class="trow">
+              <div><div class="tl">Enable auto-reply</div><div class="td">Reply to incoming messages automatically</div></div>
+              <label class="sw"><input type="checkbox" id="ar-on" onchange="sAR()"/><div class="trk"></div></label>
+            </div>
+            <div class="trow">
+              <div><div class="tl">Include groups</div><div class="td">Also reply in group chats</div></div>
+              <label class="sw"><input type="checkbox" id="ar-grp" onchange="sAR()"/><div class="trk"></div></label>
+            </div>
+            <div class="trow">
+              <div><div class="tl">Time-based only</div><div class="td">Only active during set hours</div></div>
+              <label class="sw"><input type="checkbox" id="ar-tb" onchange="tTF();sAR()"/><div class="trk"></div></label>
+            </div>
+            <div id="tf" style="display:none">
+              <div class="f-row">
+                <div class="f"><label>From</label><input type="time" id="ar-from" value="22:00" onchange="sAR()"/></div>
+                <div class="f"><label>Until</label><input type="time" id="ar-until" value="08:00" onchange="sAR()"/></div>
+              </div>
+              <div class="f"><label>Cooldown (minutes)</label><input type="number" id="ar-cool" value="60" min="1" onchange="sAR()"/></div>
+            </div>
           </div>
-          <div class="f"><label>Cooldown (minutes)</label><input type="number" id="ar-cool" value="60" min="1" onchange="sAR()"/></div>
         </div>
-      </div>
-      <div class="sec-label">Message</div>
-      <div class="panel" style="max-width:500px">
-        <div class="panel-shimmer"></div>
-        <div class="f"><label>Auto-reply text</label><textarea id="ar-msg" rows="3">Hey! I am currently busy and will reply soon.</textarea></div>
-        <div class="f"><button class="btn btn-primary" onclick="sAR()">Save changes</button></div>
+        <div>
+          <div class="sec-label">Message</div>
+          <div class="panel">
+            <div class="panel-shimmer"></div>
+            <div class="f"><label>Auto-reply text</label><textarea id="ar-msg" rows="5">Hey! I am currently busy and will reply soon.</textarea></div>
+            <div class="f"><button class="btn btn-primary" onclick="sAR()">Save changes</button></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -921,36 +928,40 @@ html,body{
         <div class="ptitle">Setup</div>
         <div class="psub">Get running in under 5 minutes</div>
       </div>
-
-      <div class="sec-label">WhatsApp Connection</div>
-      <div class="panel" style="max-width:500px;margin-bottom:14px">
-        <div class="panel-shimmer"></div>
-        <div class="qr-wrap" id="qr-section">
-          <div class="qr-frame" id="qr-img-wrap">
-            <div class="qr-ph" id="qr-placeholder">
-              <div><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
-              <div id="qr-placeholder-txt">Loading…</div>
+      <div class="two-col">
+        <div>
+          <div class="sec-label">WhatsApp Connection</div>
+          <div class="panel" style="margin-bottom:14px">
+            <div class="panel-shimmer"></div>
+            <div class="qr-wrap" id="qr-section">
+              <div class="qr-frame" id="qr-img-wrap">
+                <div class="qr-ph" id="qr-placeholder">
+                  <div><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+                  <div id="qr-placeholder-txt">Loading…</div>
+                </div>
+                <img id="qr-img" style="display:none" alt="QR Code"/>
+              </div>
+              <div class="qr-tag" id="qr-tag">Checking…</div>
+              <div class="qr-note" id="qr-note">Open WhatsApp → Linked Devices → Link a Device → scan this QR</div>
+              <button class="qr-action" onclick="loadQR()">↻ Refresh</button>
+              <button class="qr-action" onclick="disconnectWA()" style="color:var(--red)">⏏ Disconnect</button>
             </div>
-            <img id="qr-img" style="display:none" alt="QR Code"/>
           </div>
-          <div class="qr-tag" id="qr-tag">Checking…</div>
-          <div class="qr-note" id="qr-note">Open WhatsApp → Linked Devices → Link a Device → scan this QR</div>
-          <button class="qr-action" onclick="loadQR()">↻ Refresh</button>
-          <button class="qr-action" onclick="disconnectWA()" style="color:var(--red)">⏏ Disconnect</button>
         </div>
-      </div>
-
-      <div class="sec-label">Steps</div>
-      <div class="panel" style="max-width:500px">
-        <div class="step"><div class="snum">1</div><div><div class="st">Install Node.js 16+</div><div class="sd">Download from nodejs.org</div></div></div>
-        <div class="step"><div class="snum">2</div><div><div class="st">Install dependencies</div><code class="code">npm install</code></div></div>
-        <div class="step"><div class="snum">3</div><div><div class="st">Start the server</div><code class="code">node index.js</code></div></div>
-        <div class="step"><div class="snum">4</div><div><div class="st">Scan the QR above</div><div class="sd">WhatsApp → Linked Devices → Link a Device</div></div></div>
-      </div>
-      <div class="panel" style="max-width:500px;margin-top:8px;border-color:rgba(255,83,112,.14)">
-        <div class="step">
-          <div class="snum" style="background:var(--red)">!</div>
-          <div><div class="st">Fair use only</div><div class="sd">Personal automation only — not for bulk messaging.</div></div>
+        <div>
+          <div class="sec-label">Steps</div>
+          <div class="panel">
+            <div class="step"><div class="snum">1</div><div><div class="st">Install Node.js 16+</div><div class="sd">Download from nodejs.org</div></div></div>
+            <div class="step"><div class="snum">2</div><div><div class="st">Install dependencies</div><code class="code">npm install</code></div></div>
+            <div class="step"><div class="snum">3</div><div><div class="st">Start the server</div><code class="code">node index.js</code></div></div>
+            <div class="step"><div class="snum">4</div><div><div class="st">Scan the QR above</div><div class="sd">WhatsApp → Linked Devices → Link a Device</div></div></div>
+          </div>
+          <div class="panel" style="margin-top:10px;border-color:rgba(255,83,112,.14)">
+            <div class="step">
+              <div class="snum" style="background:var(--red)">!</div>
+              <div><div class="st">Fair use only</div><div class="sd">Personal automation only — not for bulk messaging.</div></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1434,7 +1445,26 @@ async function loadContacts(){
   try {
     const r = await afetch(API+"/contacts");
     if (!r.ok) { contacts = []; return contacts; }
-    contacts = await r.json();
+    const raw = await r.json();
+    // Filter out junk: broadcast lists, status, groups, very long/short numbers
+    // Deduplicate by number — keep the one with a real name
+    const seen = new Map();
+    for (const c of raw) {
+      const num = (c.number||"").replace(/\D/g,"");
+      if (!num) continue;
+      if (num.length < 7 || num.length > 15) continue;        // invalid length
+      if (c.id && c.id.includes("@broadcast")) continue;       // broadcast lists
+      if (c.id && c.id.includes("@g.us")) continue;            // groups
+      if (c.id && c.id.includes("status")) continue;           // status
+      // Keep entry with a real name over one without
+      const existing = seen.get(num);
+      if (!existing) { seen.set(num, c); continue; }
+      const hasName = c.name && c.name.trim() && c.name !== num;
+      const existingHasName = existing.name && existing.name.trim() && existing.name !== num;
+      if (hasName && !existingHasName) seen.set(num, c);
+    }
+    contacts = Array.from(seen.values())
+      .sort((a,b) => getDisplayName(a).localeCompare(getDisplayName(b)));
   } catch(e){ contacts = []; }
   return contacts;
 }
