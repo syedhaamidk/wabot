@@ -191,6 +191,18 @@ app.get("/api/auth/google/callback", async (req, res) => {
   }
 });
 
+app.get("/api/debug-env", (req, res) => {
+  res.json({
+    hasClientId:     !!process.env.GOOGLE_CLIENT_ID,
+    hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    baseUrl:         process.env.BASE_URL,
+    clientIdEnd:     (process.env.GOOGLE_CLIENT_ID || "").slice(-30),
+  });
+});
+
+// ── All routes below require auth ─────────────────────────────────────────────
+app.use("/api", requireAuth);
+
 // ── All routes below require auth ─────────────────────────────────────────────
 app.use("/api", requireAuth);
 
