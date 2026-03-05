@@ -202,18 +202,51 @@ app.get("/api/qr-data", (req, res) => {
 
 app.post("/api/logout-whatsapp", async (req, res) => {
   const session = getSession(req.user.id);
-  if (!session || !session.client) return res.status(404).json({ error: "No session." });
-  try {
-    await session.client.logout();
-    session.status = "disconnected";
-    session.qr = null;
-    // Remove from map so createClient can make a fresh session
+
+  // Force-cleanup: clears state, wipes auth files, and starts a fresh session.
+  // Called regardless of whether the graceful logout below succeeds.
+  const forceCleanup = () => {
+    if (session) {
+      session.status = "disconnected";
+      session.qr = null;
+    }
     userSessions.delete(req.user.id);
-    setTimeout(() => createClient(req.user.id), 2000);
-    res.json({ success: true });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
+
+    // Delete the saved WhatsApp auth so the next session shows a fresh QR
+    const authPath = path.join(DATA_DIR, req.user.id, ".wwebjs_auth");
+    if (fs.existsSync(authPath)) {
+      try { fs.rmSync(authPath, { recursive: true, force: true }); }
+      catch (e) { console.error(`[WA:${req.user.id}] Could not clear auth files:`, e.message); }
+    }
+
+    // Spin up a new (unauthenticated) client so the QR appears immediately
+    setTimeout(() => createClient(req.user.id), 1500);
+  };
+
+  // ── Step 1: graceful logout with a 6 s timeout ───────────────────────────
+  if (session && session.client) {
+    try {
+      await Promise.race([
+        session.client.logout(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("logout timeout")), 6000))
+      ]);
+    } catch (e) {
+      console.warn(`[WA:${req.user.id}] Graceful logout failed (${e.message}), forcing cleanup…`);
+    }
+
+    // ── Step 2: destroy the browser/puppeteer process ──────────────────────
+    try {
+      await Promise.race([
+        session.client.destroy(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("destroy timeout")), 4000))
+      ]);
+    } catch (e) {
+      // destroy() errors are expected when the client is already gone
+    }
   }
+
+  forceCleanup();
+  res.json({ success: true });
 });
 
 // ── Contacts ─────────────────────────────────────────────────────────────────

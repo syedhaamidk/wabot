@@ -4,166 +4,321 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta name="theme-color" content="#080c0a"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimum-scale=1.0"/>
+<meta name="theme-color" content="#060b14"/>
 <title>WABot — Sign in</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;background:#080c0a;color:#f0fdf4;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 
-/* BG */
+html,body{
+  min-height:100vh;min-height:100dvh;
+  font-family:'DM Sans',sans-serif;
+  background:#060b14;color:#e8edf7;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* ── Background ── */
 .bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
-.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:float linear infinite alternate}
-.orb-1{width:clamp(400px,60vw,700px);height:clamp(400px,60vw,700px);top:-20%;left:-15%;background:radial-gradient(circle,rgba(34,197,94,.2) 0%,transparent 70%);animation-duration:20s}
-.orb-2{width:clamp(300px,45vw,550px);height:clamp(300px,45vw,550px);bottom:-15%;right:-10%;background:radial-gradient(circle,rgba(22,163,74,.16) 0%,transparent 70%);animation-duration:26s;animation-direction:alternate-reverse}
-.orb-3{width:clamp(200px,30vw,380px);height:clamp(200px,30vw,380px);top:40%;left:55%;background:radial-gradient(circle,rgba(74,222,128,.1) 0%,transparent 70%);animation-duration:16s}
-@keyframes float{0%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-20px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.97)}100%{transform:translate(40px,10px) scale(1.08)}}
-.grid{position:absolute;inset:0;} #dot-canvas{position:absolute;inset:0;width:100%;height:100%;}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);animation:drift linear infinite alternate}
+.o1{width:clamp(380px,55vw,680px);height:clamp(380px,55vw,680px);top:-22%;left:-16%;background:radial-gradient(circle,rgba(14,232,160,.12) 0%,transparent 65%);animation-duration:24s}
+.o2{width:clamp(280px,42vw,520px);height:clamp(280px,42vw,520px);bottom:-16%;right:-10%;background:radial-gradient(circle,rgba(123,159,255,.09) 0%,transparent 65%);animation-duration:30s;animation-direction:alternate-reverse}
+.o3{width:clamp(180px,28vw,350px);height:clamp(180px,28vw,350px);top:38%;left:52%;background:radial-gradient(circle,rgba(14,232,160,.06) 0%,transparent 65%);animation-duration:18s}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}40%{transform:translate(28px,-18px) scale(1.04)}80%{transform:translate(-18px,26px) scale(.97)}100%{transform:translate(38px,10px) scale(1.06)}}
 
-/* LAYOUT */
+.noise{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:200px}
+
+canvas#dots{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}
+
+/* ── Shell ── */
 .shell{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1fr 1fr;align-items:center}
 
-/* LEFT */
-.left{display:flex;flex-direction:column;justify-content:center;padding:60px clamp(40px,5vw,80px);height:100%;border-right:1px solid rgba(34,197,94,.08)}
-.brand{display:flex;align-items:center;gap:14px;margin-bottom:64px;animation:fadeUp .6s cubic-bezier(.16,1,.3,1) both}
-.brand-mark{width:50px;height:50px;border-radius:14px;background:linear-gradient(145deg,#22c55e,#15803d);display:grid;place-items:center;flex-shrink:0;box-shadow:0 0 0 1px rgba(34,197,94,.3),0 8px 24px rgba(34,197,94,.3);position:relative;overflow:hidden}
-.brand-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.25) 0%,transparent 55%)}
-.brand-name{font-family:'Outfit',sans-serif;font-size:26px;font-weight:700;letter-spacing:-1.5px}
-.brand-name span{color:#22c55e}
-.tagline{animation:fadeUp .6s .1s cubic-bezier(.16,1,.3,1) both;margin-bottom:48px}
-.tagline h1{font-family:'Outfit',sans-serif;font-size:clamp(28px,3.5vw,46px);font-weight:600;line-height:1.08;letter-spacing:-2.5px;color:#fff;margin-bottom:16px}
-.tagline h1 em{color:#22c55e;font-style:normal}
-.tagline p{font-size:14.5px;font-weight:300;color:rgba(240,253,244,.38);line-height:1.8;max-width:340px;letter-spacing:.1px}
-.features{display:flex;flex-direction:column;gap:16px;animation:fadeUp .6s .2s cubic-bezier(.16,1,.3,1) both}
-.feat{display:flex;align-items:center;gap:12px;font-size:13.5px;font-weight:300;color:rgba(240,253,244,.4);letter-spacing:.1px}
-.feat-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,.7)}
+/* ── LEFT ── */
+.left{
+  display:flex;flex-direction:column;justify-content:center;
+  padding:60px clamp(36px,5vw,80px);
+  height:100%;
+  border-right:1px solid rgba(255,255,255,.05);
+}
 
-/* RIGHT */
-.right{display:flex;align-items:center;justify-content:center;padding:clamp(24px,4vw,60px) clamp(20px,4vw,60px);min-height:100vh;min-height:100dvh}
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:60px;animation:slideUp .6s cubic-bezier(.16,1,.3,1) both}
+.brand-mark{
+  width:48px;height:48px;border-radius:13px;flex-shrink:0;
+  background:linear-gradient(140deg,#0ee8a0,#06b86e);
+  display:grid;place-items:center;
+  box-shadow:0 0 0 1px rgba(14,232,160,.25),0 8px 28px rgba(14,232,160,.28);
+  position:relative;overflow:hidden;
+}
+.brand-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 55%)}
+.brand-name{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.8px}
+.brand-name span{color:#0ee8a0}
 
-/* CARD */
-.card{width:100%;max-width:400px;background:rgba(8,14,10,.82);border:1px solid rgba(34,197,94,.13);border-radius:20px;padding:clamp(28px,5vw,40px) clamp(24px,5vw,36px);box-shadow:0 0 0 1px rgba(34,197,94,.04) inset,0 40px 100px rgba(0,0,0,.7),0 0 80px rgba(34,197,94,.07);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);animation:cardIn .55s cubic-bezier(.16,1,.3,1) both}
-@keyframes cardIn{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
+.hero{animation:slideUp .6s .08s cubic-bezier(.16,1,.3,1) both;margin-bottom:44px}
+.hero h1{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(28px,3.2vw,46px);font-weight:800;
+  line-height:1.06;letter-spacing:-2px;
+  color:#e8edf7;margin-bottom:18px;
+}
+.hero h1 em{color:#0ee8a0;font-style:normal}
+.hero p{font-size:14px;font-weight:300;color:rgba(200,215,255,.38);line-height:1.85;max-width:330px}
+
+.feats{display:flex;flex-direction:column;gap:14px;animation:slideUp .6s .16s cubic-bezier(.16,1,.3,1) both}
+.feat{display:flex;align-items:center;gap:12px;font-size:13.5px;font-weight:400;color:rgba(200,215,255,.38)}
+.feat-ic{
+  width:28px;height:28px;border-radius:8px;flex-shrink:0;
+  background:rgba(14,232,160,.07);border:1px solid rgba(14,232,160,.15);
+  display:grid;place-items:center;color:#0ee8a0;
+}
+
+/* ── RIGHT ── */
+.right{
+  display:flex;align-items:center;justify-content:center;
+  padding:clamp(24px,4vw,60px) clamp(20px,4vw,60px);
+  min-height:100vh;min-height:100dvh;
+}
+
+/* ── CARD ── */
+.card{
+  width:100%;max-width:408px;
+  background:rgba(9,14,26,.82);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:24px;
+  padding:clamp(28px,5vw,40px) clamp(24px,5vw,36px);
+  box-shadow:
+    0 0 0 1px rgba(14,232,160,.04) inset,
+    0 40px 100px rgba(0,0,0,.65),
+    0 0 80px rgba(14,232,160,.05);
+  backdrop-filter:blur(44px);-webkit-backdrop-filter:blur(44px);
+  animation:cardIn .5s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
 
 /* Mobile logo */
-.card-logo{display:none;align-items:center;gap:10px;margin-bottom:28px}
-.card-logo-mark{width:40px;height:40px;border-radius:12px;background:linear-gradient(145deg,#22c55e,#15803d);display:grid;place-items:center;box-shadow:0 4px 16px rgba(34,197,94,.3);position:relative;overflow:hidden}
-.card-logo-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.25) 0%,transparent 55%)}
-.card-logo-name{font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;letter-spacing:-1px}
-.card-logo-name span{color:#22c55e}
+.mob-logo{display:none;align-items:center;gap:10px;margin-bottom:26px}
+.mob-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(140deg,#0ee8a0,#06b86e);display:grid;place-items:center;box-shadow:0 4px 16px rgba(14,232,160,.28);position:relative;overflow:hidden}
+.mob-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 55%)}
+.mob-name{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;letter-spacing:-.5px}
+.mob-name span{color:#0ee8a0}
 
-.card-head{margin-bottom:28px}
-.card-title{font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;letter-spacing:-1px;color:#fff;margin-bottom:4px}
-.card-sub{font-size:13px;color:rgba(240,253,244,.3);font-weight:300;letter-spacing:.1px}
+.card-head{margin-bottom:26px}
+.card-title{font-family:'Syne',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.6px;color:#e8edf7;margin-bottom:4px}
+.card-sub{font-size:13px;color:rgba(200,215,255,.32);font-weight:400}
 
-/* TABS */
-.tabs{display:grid;grid-template-columns:1fr 1fr;background:rgba(255,255,255,.04);border:1px solid rgba(34,197,94,.08);border-radius:12px;padding:4px;margin-bottom:28px;gap:4px}
-.tab{padding:10px;border-radius:8px;text-align:center;font-size:13px;font-weight:500;letter-spacing:.1px;cursor:pointer;color:rgba(240,253,244,.3);transition:all .2s ease;white-space:nowrap;border:1px solid transparent}
-.tab.on{background:rgba(34,197,94,.1);color:#4ade80;border-color:rgba(34,197,94,.18);font-weight:600}
+/* ── TABS ── */
+.tabs{
+  display:grid;grid-template-columns:1fr 1fr;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:13px;padding:4px;margin-bottom:26px;gap:4px;
+}
+.tab{
+  padding:10px;border-radius:9px;text-align:center;
+  font-size:13px;font-weight:500;
+  cursor:pointer;color:rgba(200,215,255,.32);
+  transition:all .2s ease;border:1px solid transparent;
+}
+.tab.on{
+  background:rgba(14,232,160,.09);
+  color:#0ee8a0;border-color:rgba(14,232,160,.18);
+  font-weight:600;
+}
 
-/* ERROR */
-.err{display:none;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:500;color:#f87171;margin-bottom:16px;align-items:center;gap:8px}
+/* ── ERROR ── */
+.err{
+  display:none;
+  background:rgba(255,92,122,.07);
+  border:1px solid rgba(255,92,122,.2);
+  border-radius:10px;padding:10px 14px;
+  font-size:13px;font-weight:500;color:#ff5c7a;
+  margin-bottom:16px;align-items:center;gap:8px;
+}
 .err.show{display:flex}
-.err-icon{flex-shrink:0}
 
-/* FIELDS */
-.field{margin-bottom:16px}
-.field label{display:block;font-size:10.5px;font-weight:500;color:rgba(240,253,244,.25);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
-.field input{width:100%;padding:13px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(34,197,94,.1);border-radius:10px;font-size:15px;letter-spacing:.1px;font-family:'Outfit',sans-serif;color:#f0fdf4;transition:all .2s ease;-webkit-appearance:none;appearance:none}
-.field input:focus{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.04);outline:none;box-shadow:0 0 0 3px rgba(34,197,94,.08)}
-.field input::placeholder{color:rgba(240,253,244,.18)}
-.field input:-webkit-autofill,.field input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #0d1a0f inset;-webkit-text-fill-color:#f0fdf4;caret-color:#f0fdf4}
+/* ── FIELDS ── */
+.field{margin-bottom:14px}
+.field label{
+  display:block;font-size:9.5px;font-weight:700;
+  color:rgba(160,185,255,.35);
+  text-transform:uppercase;letter-spacing:1.1px;margin-bottom:7px;
+}
+.field input{
+  width:100%;padding:12px 15px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:11px;
+  font-size:14.5px;letter-spacing:.1px;
+  font-family:'DM Sans',sans-serif;color:#e8edf7;
+  transition:all .2s ease;-webkit-appearance:none;appearance:none;
+}
+.field input:focus{
+  border-color:rgba(14,232,160,.35);
+  background:rgba(14,232,160,.04);
+  outline:none;
+  box-shadow:0 0 0 3px rgba(14,232,160,.07);
+}
+.field input::placeholder{color:rgba(160,185,255,.22)}
+.field input:-webkit-autofill,.field input:-webkit-autofill:focus{
+  -webkit-box-shadow:0 0 0 1000px #0a1020 inset;
+  -webkit-text-fill-color:#e8edf7;caret-color:#e8edf7;
+}
 
-/* BUTTON */
-.btn{width:100%;padding:14px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:.3px;font-family:'Outfit',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;border:none;margin-top:8px;transition:all .2s ease;position:relative;overflow:hidden}
-.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.12) 0%,transparent 60%);pointer-events:none}
-.btn:active{transform:scale(.97);opacity:.85}
-.btn-primary{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;box-shadow:0 4px 20px rgba(34,197,94,.35),0 1px 0 rgba(255,255,255,.1) inset}
-.btn-primary:hover{box-shadow:0 6px 28px rgba(34,197,94,.5);transform:translateY(-1px)}
-.btn:disabled{opacity:.55;cursor:not-allowed;transform:none !important}
-.spinner{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .65s linear infinite;display:none;flex-shrink:0}
+/* ── BUTTONS ── */
+.btn{
+  width:100%;padding:13px;border-radius:12px;
+  font-size:14.5px;font-weight:600;letter-spacing:.15px;
+  font-family:'DM Sans',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  cursor:pointer;border:none;margin-top:8px;
+  transition:all .18s ease;position:relative;overflow:hidden;
+}
+.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 55%);pointer-events:none}
+.btn:active{transform:scale(.965);opacity:.85}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
+
+.btn-primary{
+  background:linear-gradient(135deg,#0ee8a0,#09c882);
+  color:#000;font-weight:700;
+  box-shadow:0 4px 22px rgba(14,232,160,.28),0 1px 0 rgba(255,255,255,.12) inset;
+}
+.btn-primary:hover{box-shadow:0 6px 30px rgba(14,232,160,.42);transform:translateY(-1px)}
+
+.btn-google{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.09);
+  color:rgba(220,230,255,.75);margin-top:0;
+}
+.btn-google:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);transform:translateY(-1px)}
+
+.spinner{width:17px;height:17px;border-radius:50%;border:2px solid rgba(0,0,0,.2);border-top-color:#000;animation:spin .6s linear infinite;display:none;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading .spinner{display:block}
 .loading .btn-txt{display:none}
 
-/* GOOGLE BTN */
-.btn-google{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(240,253,244,.85);margin-top:0}
-.btn-google:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);transform:translateY(-1px)}
-.or-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:rgba(240,253,244,.18);font-size:11px;letter-spacing:1px;text-transform:uppercase}
-.or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:rgba(34,197,94,.07)}
+/* ── DIVIDER ── */
+.or-div{display:flex;align-items:center;gap:10px;margin:14px 0;color:rgba(160,185,255,.2);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase}
+.or-div::before,.or-div::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.055)}
 
-/* DIVIDER */
-.divider{display:flex;align-items:center;gap:12px;margin-top:24px;color:rgba(240,253,244,.15);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400}
-.divider::before,.divider::after{content:"";flex:1;height:1px;background:rgba(34,197,94,.07)}
+.foot-div{display:flex;align-items:center;gap:12px;margin-top:22px;color:rgba(160,185,255,.18);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;font-weight:500}
+.foot-div::before,.foot-div::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.05)}
 
-/* ANIMATIONS */
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.trust-row{display:flex;justify-content:center;gap:20px;margin-top:14px}
+.trust-item{display:flex;align-items:center;gap:5px;font-size:10.5px;color:rgba(160,185,255,.22)}
 
-/* RESPONSIVE */
+/* ── ANIMATIONS ── */
+@keyframes slideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* ── RESPONSIVE ── */
 @media(max-width:768px){
   .shell{grid-template-columns:1fr;align-items:flex-start}
   .left{display:none}
-  .right{min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top,32px) 20px env(safe-area-inset-bottom,32px);align-items:center}
-  .card{border-radius:20px;max-width:440px}
-  .card-logo{display:flex}
+  .right{
+    min-height:100vh;min-height:100dvh;
+    padding:max(env(safe-area-inset-top,0px),28px) 16px max(env(safe-area-inset-bottom,0px),24px);
+    align-items:center;
+  }
+  .card{
+    border-radius:22px;max-width:440px;
+    padding:24px 20px;
+  }
+  .mob-logo{display:flex}
+  /* Slightly smaller text to fit well */
+  .card-title{font-size:19px}
+  .field input{font-size:16px} /* prevents iOS zoom on focus */
+  .btn{font-size:15px;padding:13px}
+  /* Trust row: more compact */
+  .trust-row{gap:14px}
+  .trust-item{font-size:10px}
+  /* Footer divider less prominent */
+  .foot-div{margin-top:18px}
 }
-@media(max-width:768px) and (max-height:660px){
-  .right{align-items:flex-start;padding-top:20px}
+@media(max-width:768px) and (max-height:680px){
+  .right{align-items:flex-start;padding-top:16px}
+  .card{padding:20px 18px}
+  .card-head{margin-bottom:18px}
+  .tabs{margin-bottom:18px}
+  .field{margin-bottom:11px}
+  .foot-div,.trust-row{display:none} /* hide footer on very short screens */
 }
 @media(min-width:769px) and (max-width:1024px){
   .left{padding:40px 28px}
-  .tagline h1{font-size:28px}
+  .hero h1{font-size:28px}
+  .feats{gap:11px}
 }
 </style>
 </head>
 <body>
 
 <div class="bg">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-  <div class="grid"><canvas id="dot-canvas"></canvas></div>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
 </div>
+<div class="noise"></div>
+<canvas id="dots"></canvas>
 
 <div class="shell">
 
-  <!-- Left — desktop branding -->
+  <!-- ── LEFT ── -->
   <div class="left">
     <div class="brand">
       <div class="brand-mark">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#000" stroke-width="2.5" stroke-linejoin="round" fill="none"/>
+          <path d="M8 10h.01M12 10h.01M16 10h.01" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
       </div>
       <div class="brand-name">WA<span>Bot</span></div>
     </div>
-    <div class="tagline">
+
+    <div class="hero">
       <h1>Schedule messages<br/><em>while you sleep.</em></h1>
-      <p>Automate your WhatsApp — send messages at the perfect time, auto-reply when you're busy, and never miss a beat.</p>
+      <p>Automate your WhatsApp — send at the perfect time, auto-reply when you're busy, and stay on top of every conversation.</p>
     </div>
-    <div class="features">
-      <div class="feat"><div class="feat-dot"></div>Schedule messages to any contact</div>
-      <div class="feat"><div class="feat-dot"></div>Auto-reply when you're away</div>
-      <div class="feat"><div class="feat-dot"></div>Pick contacts straight from WhatsApp</div>
-      <div class="feat"><div class="feat-dot"></div>Your session, fully isolated from others</div>
+
+    <div class="feats">
+      <div class="feat">
+        <div class="feat-ic">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        Schedule messages to any contact
+      </div>
+      <div class="feat">
+        <div class="feat-ic">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
+        </div>
+        Auto-reply when you're away
+      </div>
+      <div class="feat">
+        <div class="feat-ic">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        Reusable message templates
+      </div>
+      <div class="feat">
+        <div class="feat-ic">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        Your session, fully isolated
+      </div>
     </div>
   </div>
 
-  <!-- Right — card -->
+  <!-- ── RIGHT ── -->
   <div class="right">
     <div class="card">
 
-      <!-- Mobile logo -->
-      <div class="card-logo">
-        <div class="card-logo-mark">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8L14 2z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <div class="mob-logo">
+        <div class="mob-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#000" stroke-width="2.5" stroke-linejoin="round" fill="none"/>
+            <path d="M8 10h.01M12 10h.01M16 10h.01" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
           </svg>
         </div>
-        <div class="card-logo-name">WA<span>Bot</span></div>
+        <div class="mob-name">WA<span>Bot</span></div>
       </div>
 
       <div class="card-head">
@@ -176,7 +331,10 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
         <div class="tab" id="tab-signup" onclick="switchTab('signup')">Create account</div>
       </div>
 
-      <div id="err" class="err"><span class="err-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span id="err-txt"></span></div>
+      <div id="err" class="err">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="err-txt"></span>
+      </div>
 
       <!-- Login -->
       <div id="form-login">
@@ -192,12 +350,12 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
           <div class="spinner"></div>
           <span class="btn-txt">Sign in →</span>
         </button>
-        <div style="text-align:center;margin-top:14px">
-          <a href="#" style="font-size:12px;color:rgba(240,253,244,.28);text-decoration:none;font-weight:400;letter-spacing:.1px;transition:color .2s" onmouseover="this.style.color='rgba(74,222,128,.7)'" onmouseout="this.style.color='rgba(240,253,244,.28)'">Forgot password?</a>
+        <div style="text-align:center;margin-top:13px">
+          <a href="#" style="font-size:12px;color:rgba(160,185,255,.28);text-decoration:none;font-weight:400;transition:color .2s" onmouseover="this.style.color='rgba(14,232,160,.6)'" onmouseout="this.style.color='rgba(160,185,255,.28)'">Forgot password?</a>
         </div>
-        <div class="or-divider">or</div>
+        <div class="or-div">or</div>
         <a href="/api/auth/google" class="btn btn-google" style="text-decoration:none">
-          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.58-13.46-8.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/></svg>
+          <svg width="15" height="15" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.58-13.46-8.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/></svg>
           Continue with Google
         </a>
       </div>
@@ -216,25 +374,26 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
           <div class="spinner"></div>
           <span class="btn-txt">Create account →</span>
         </button>
-        <div class="or-divider">or</div>
+        <div class="or-div">or</div>
         <a href="/api/auth/google" class="btn btn-google" style="text-decoration:none">
-          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.58-13.46-8.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/></svg>
+          <svg width="15" height="15" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.58-13.46-8.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/></svg>
           Continue with Google
         </a>
       </div>
 
-      <div class="divider">end-to-end encrypted session</div>
-      <div style="display:flex;justify-content:center;gap:20px;margin-top:16px">
-        <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:rgba(240,253,244,.2)">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Private
+      <div class="foot-div">end-to-end encrypted</div>
+      <div class="trust-row">
+        <div class="trust-item">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Private
         </div>
-        <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:rgba(240,253,244,.2)">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Instant setup
+        <div class="trust-item">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Instant setup
         </div>
-        <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:rgba(240,253,244,.2)">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg> Auto-reply
+        <div class="trust-item">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secure
         </div>
       </div>
+
     </div>
   </div>
 
@@ -244,40 +403,37 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Outfit',sans-serif;bac
 if (localStorage.getItem("wabot-token")) window.location.href = "/dashboard";
 
 const TITLES = {
-  login:  ["Welcome back",     "Sign in to your account to continue"],
-  signup: ["Create account",   "Get started — it only takes a second"]
+  login:  ["Welcome back",    "Sign in to your account to continue"],
+  signup: ["Create account",  "Get started — it only takes a second"]
 };
 
 function switchTab(t){
   ["login","signup"].forEach(n=>{
-    document.getElementById("tab-"+n).classList.toggle("on", n===t);
-    document.getElementById("form-"+n).style.display = n===t ? "block" : "none";
+    document.getElementById("tab-"+n).classList.toggle("on",n===t);
+    document.getElementById("form-"+n).style.display=n===t?"block":"none";
   });
-  document.getElementById("card-title").textContent = TITLES[t][0];
-  document.getElementById("card-sub").textContent   = TITLES[t][1];
+  document.getElementById("card-title").textContent=TITLES[t][0];
+  document.getElementById("card-sub").textContent=TITLES[t][1];
   hideErr();
-  const first = document.querySelector("#form-"+t+" input");
-  if (first) setTimeout(()=>first.focus(), 80);
+  const first=document.querySelector("#form-"+t+" input");
+  if(first)setTimeout(()=>first.focus(),80);
 }
 
-function showErr(msg){
-  document.getElementById("err-txt").textContent = msg;
-  document.getElementById("err").classList.add("show");
-}
+function showErr(msg){ document.getElementById("err-txt").textContent=msg; document.getElementById("err").classList.add("show"); }
 function hideErr(){ document.getElementById("err").classList.remove("show"); }
 function setLoading(btn,on){ btn.classList.toggle("loading",on); btn.disabled=on; }
 
 async function doLogin(){
-  const email = document.getElementById("l-email").value.trim();
-  const pass  = document.getElementById("l-pass").value;
-  if (!email||!pass) return showErr("Please fill in both fields.");
+  const email=document.getElementById("l-email").value.trim();
+  const pass=document.getElementById("l-pass").value;
+  if(!email||!pass)return showErr("Please fill in both fields.");
   hideErr();
-  const btn = document.getElementById("btn-login");
+  const btn=document.getElementById("btn-login");
   setLoading(btn,true);
   try{
-    const r = await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
-    const d = await r.json();
-    if (!r.ok) return showErr(d.error||"Login failed. Check your credentials.");
+    const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
+    const d=await r.json();
+    if(!r.ok)return showErr(d.error||"Login failed. Check your credentials.");
     localStorage.setItem("wabot-token",d.token);
     localStorage.setItem("wabot-email",d.email);
     window.location.href="/dashboard";
@@ -286,17 +442,18 @@ async function doLogin(){
 }
 
 async function doSignup(){
-  const email = document.getElementById("s-email").value.trim();
-  const pass  = document.getElementById("s-pass").value;
-  if (!email||!pass) return showErr("Please fill in both fields.");
-  if (pass.length<6) return showErr("Password must be at least 6 characters.");
+  const email=document.getElementById("s-email").value.trim();
+  const pass=document.getElementById("s-pass").value;
+  if(!email||!pass)return showErr("Please fill in both fields.");
+  if(!email.includes("@"))return showErr("Please enter a valid email.");
+  if(pass.length<6)return showErr("Password must be at least 6 characters.");
   hideErr();
-  const btn = document.getElementById("btn-signup");
+  const btn=document.getElementById("btn-signup");
   setLoading(btn,true);
   try{
-    const r = await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
-    const d = await r.json();
-    if (!r.ok) return showErr(d.error||"Signup failed.");
+    const r=await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pass})});
+    const d=await r.json();
+    if(!r.ok)return showErr(d.error||"Signup failed.");
     localStorage.setItem("wabot-token",d.token);
     localStorage.setItem("wabot-email",d.email);
     window.location.href="/dashboard";
@@ -305,144 +462,99 @@ async function doSignup(){
 }
 
 document.addEventListener("keydown",e=>{
-  if (e.key!=="Enter") return;
-  document.getElementById("form-login").style.display!=="none" ? doLogin() : doSignup();
+  if(e.key!=="Enter")return;
+  document.getElementById("form-login").style.display!=="none"?doLogin():doSignup();
 });
 </script>
 
+<!-- Interactive dot grid matching dashboard aesthetic -->
 <script>
 (function(){
-  const canvas = document.getElementById('dot-canvas');
-  const ctx = canvas.getContext('2d');
+  const canvas=document.getElementById("dots");
+  const ctx=canvas.getContext("2d");
+  const SPACING=36, BASE_R=1.1, MAX_R=4.5, REACH=155;
+  const LERP=.088, DECAY=.05, RISE=.16;
+  const RIPPLE_SPEED=3.2, RIPPLE_LIFE=52;
 
-  const SPACING  = 34;
-  const BASE_R   = 1.2;
-  const MAX_R    = 5;
-  const REACH    = 160;   // how far the cursor influence extends
-  const LERP_M   = 0.09;  // mouse smoothing
-  const DECAY    = 0.055; // how fast dots fade after cursor leaves
-  const RISE     = 0.18;  // how fast dots light up
-  const RIPPLE_SPEED = 3.5;
-  const RIPPLE_LIFE  = 55;
+  let mouse={x:-9999,y:-9999}, smooth={x:-9999,y:-9999};
+  let dots=[], ripples=[];
 
-  let mouse  = { x: -9999, y: -9999 };
-  let smooth = { x: -9999, y: -9999 };
-  let dots   = [];
-  let ripples = [];
-
-  /* ── Build dot grid ── */
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
+  function resize(){
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
     buildDots();
   }
 
-  function buildDots() {
-    const cols = Math.ceil(canvas.width  / SPACING) + 2;
-    const rows = Math.ceil(canvas.height / SPACING) + 2;
-    // Offset so grid is centered
-    const offX = ((canvas.width  % SPACING) / 2);
-    const offY = ((canvas.height % SPACING) / 2);
-    dots = [];
-    for (let r = 0; r < rows; r++)
-      for (let c = 0; c < cols; c++)
-        dots.push({ x: offX + c * SPACING, y: offY + r * SPACING, g: 0 });
+  function buildDots(){
+    const cols=Math.ceil(canvas.width/SPACING)+2;
+    const rows=Math.ceil(canvas.height/SPACING)+2;
+    const offX=(canvas.width%SPACING)/2;
+    const offY=(canvas.height%SPACING)/2;
+    dots=[];
+    for(let r=0;r<rows;r++)
+      for(let c=0;c<cols;c++)
+        dots.push({x:offX+c*SPACING,y:offY+r*SPACING,g:0});
   }
 
-  /* ── Ripple on click ── */
-  function spawnRipple(x, y) {
-    ripples.push({ x, y, t: 0 });
-  }
+  function draw(){
+    smooth.x+=(mouse.x-smooth.x)*LERP;
+    smooth.y+=(mouse.y-smooth.y)*LERP;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  /* ── Main loop ── */
-  function draw() {
-    // Smooth mouse
-    smooth.x += (mouse.x - smooth.x) * LERP_M;
-    smooth.y += (mouse.y - smooth.y) * LERP_M;
+    const cx=canvas.width/2, cy=canvas.height/2;
+    const maxV=Math.hypot(cx,cy)*.9;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for(const d of dots){
+      const md=Math.hypot(d.x-smooth.x,d.y-smooth.y);
+      const target=md<REACH?Math.pow(1-md/REACH,1.7):0;
 
-    // Vignette reference
-    const cx = canvas.width / 2, cy = canvas.height / 2;
-    const maxV = Math.hypot(cx, cy) * 0.9;
-
-    for (const d of dots) {
-      // Cursor proximity
-      const md   = Math.hypot(d.x - smooth.x, d.y - smooth.y);
-      const target = md < REACH ? Math.pow(1 - md / REACH, 1.6) : 0;
-
-      // Ripple contribution
-      let rippleBoost = 0;
-      for (const rp of ripples) {
-        const rd   = Math.hypot(d.x - rp.x, d.y - rp.y);
-        const wave = rp.t * RIPPLE_SPEED;
-        const band = 28;
-        const diff = Math.abs(rd - wave);
-        if (diff < band) {
-          const strength = (1 - diff / band) * (1 - rp.t / RIPPLE_LIFE);
-          rippleBoost = Math.max(rippleBoost, strength * 0.9);
-        }
+      let rb=0;
+      for(const rp of ripples){
+        const rd=Math.hypot(d.x-rp.x,d.y-rp.y);
+        const wave=rp.t*RIPPLE_SPEED, band=26, diff=Math.abs(rd-wave);
+        if(diff<band){ const s=(1-diff/band)*(1-rp.t/RIPPLE_LIFE); rb=Math.max(rb,s*.88); }
       }
 
-      const combined = Math.min(1, target + rippleBoost);
-      // Smooth glow value
-      d.g += (combined - d.g) * (combined > d.g ? RISE : DECAY);
+      const combined=Math.min(1,target+rb);
+      d.g+=(combined-d.g)*(combined>d.g?RISE:DECAY);
+      if(d.g<0.005)continue;
 
-      if (d.g < 0.005) continue;
+      const vd=Math.hypot(d.x-cx,d.y-cy);
+      const vign=Math.max(0.07,1-vd/maxV);
+      const g=d.g*vign;
+      const r=BASE_R+(MAX_R-BASE_R)*g;
+      const alpha=0.09+g*.88;
 
-      // Vignette: edges of screen are dimmer
-      const vd   = Math.hypot(d.x - cx, d.y - cy);
-      const vign = Math.max(0.08, 1 - vd / maxV);
-
-      const g     = d.g * vign;
-      const r     = BASE_R + (MAX_R - BASE_R) * g;
-      const alpha = 0.1 + g * 0.9;
-
-      // Outer glow halo
-      if (g > 0.04) {
-        const haloR = r * 6;
-        const grad  = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, haloR);
-        grad.addColorStop(0,   `rgba(74,222,128,${g * 0.28})`);
-        grad.addColorStop(0.4, `rgba(34,197,94,${g * 0.12})`);
-        grad.addColorStop(1,   `rgba(34,197,94,0)`);
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, haloR, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
+      if(g>0.04){
+        const hr=r*5.5;
+        const grad=ctx.createRadialGradient(d.x,d.y,0,d.x,d.y,hr);
+        grad.addColorStop(0,`rgba(14,232,160,${g*.26})`);
+        grad.addColorStop(.4,`rgba(9,200,130,${g*.11})`);
+        grad.addColorStop(1,`rgba(14,232,160,0)`);
+        ctx.beginPath();ctx.arc(d.x,d.y,hr,0,Math.PI*2);
+        ctx.fillStyle=grad;ctx.fill();
       }
 
-      // Core dot — white-hot center fading to green
-      const coreGrad = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, r);
-      coreGrad.addColorStop(0,   `rgba(255,255,255,${Math.min(1, alpha * 1.4)})`);
-      coreGrad.addColorStop(0.4, `rgba(134,239,172,${alpha})`);
-      coreGrad.addColorStop(1,   `rgba(34,197,94,${alpha * 0.6})`);
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = coreGrad;
-      ctx.fill();
+      const cg=ctx.createRadialGradient(d.x,d.y,0,d.x,d.y,r);
+      cg.addColorStop(0,`rgba(255,255,255,${Math.min(1,alpha*1.35)})`);
+      cg.addColorStop(.4,`rgba(120,255,200,${alpha})`);
+      cg.addColorStop(1,`rgba(14,232,160,${alpha*.55})`);
+      ctx.beginPath();ctx.arc(d.x,d.y,r,0,Math.PI*2);
+      ctx.fillStyle=cg;ctx.fill();
     }
 
-    // Advance ripples
-    ripples = ripples.filter(rp => {
-      rp.t++;
-      return rp.t < RIPPLE_LIFE;
-    });
-
+    ripples=ripples.filter(rp=>{rp.t++;return rp.t<RIPPLE_LIFE;});
     requestAnimationFrame(draw);
   }
 
-  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-  window.addEventListener('touchmove', e => {
-    mouse.x = e.touches[0].clientX;
-    mouse.y = e.touches[0].clientY;
-  }, { passive: true });
-  window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
-  window.addEventListener('click',      e => spawnRipple(e.clientX, e.clientY));
-  window.addEventListener('touchstart', e => spawnRipple(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-  window.addEventListener('resize', resize);
+  window.addEventListener("mousemove",e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+  window.addEventListener("touchmove",e=>{mouse.x=e.touches[0].clientX;mouse.y=e.touches[0].clientY;},{passive:true});
+  window.addEventListener("mouseleave",()=>{mouse.x=-9999;mouse.y=-9999;});
+  window.addEventListener("click",e=>{ripples.push({x:e.clientX,y:e.clientY,t:0});});
+  window.addEventListener("touchstart",e=>{ripples.push({x:e.touches[0].clientX,y:e.touches[0].clientY,t:0});},{passive:true});
+  window.addEventListener("resize",resize);
 
-  resize();
-  draw();
+  resize();draw();
 })();
 </script>
 </body>
