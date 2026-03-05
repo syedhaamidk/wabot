@@ -1,35 +1,38 @@
 const { Client, LocalAuth } = require("whatsapp-web.js");
-const qrcode    = require("qrcode-terminal");
-const QRCode    = require("qrcode");
-const express   = require("express");
-const cors      = require("cors");
+const qrcode     = require("qrcode-terminal");
+const QRCode     = require("qrcode");
+const express    = require("express");
+const cors       = require("cors");
 const bodyParser = require("body-parser");
-const path      = require("path");
-const fs        = require("fs");
+const rateLimit  = require("express-rate-limit");
+const helmet     = require("helmet");
+const path       = require("path");
+const fs         = require("fs");
 
 const { signup, login, requireAuth, googleAuthURL, googleCallback } = require("./auth");
 
-// ── Ensure data directory exists on startup ──────────────────────────────────
+// ── Data directory ────────────────────────────────────────────────────────────
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   console.log("[Startup] Created data/ directory");
 }
+
 const {
   scheduleMessage, editScheduledMessage, cancelScheduledMessage,
   restoreFromTrash, permanentlyDelete,
   getScheduledMessages, getTrashedMessages,
-  restoreUserJobs
+  restoreUserJobs,
 } = require("./scheduler");
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
-const {
-  getTemplates, getTemplate,
-  createTemplate, updateTemplate,
-  deleteTemplate, recordUsage,
-} = require("./templates");
+const { getTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, recordUsage } = require("./templates");
 
 // ── Per-user WhatsApp clients ────────────────────────────────────────────────
 const userSessions = new Map();
+
+// Per-user contacts cache (5-minute TTL) — avoids hammering WA on every picker open
+const contactsCache = new Map(); // userId -> { data, fetchedAt }
+const CONTACTS_TTL  = 5 * 60 * 1000;
 
 function createClient(userId) {
   if (userSessions.has(userId)) return userSessions.get(userId);
@@ -37,8 +40,6 @@ function createClient(userId) {
   const session = { client: null, qr: null, status: "initializing" };
   userSessions.set(userId, session);
 
-  // Build puppeteer config — use CHROMIUM_PATH env var if set (e.g. on Railway),
-  // otherwise fall back to puppeteer's own bundled Chromium
   const puppeteerConfig = {
     headless: true,
     protocolTimeout: 300000,
@@ -51,27 +52,25 @@ function createClient(userId) {
       "--disable-features=TranslateUI,BlinkGenPropertyTrees",
       "--disable-ipc-flooding-protection",
       "--single-process",
-      "--js-flags=--max-old-space-size=512"
-    ]
+      "--js-flags=--max-old-space-size=512",
+    ],
   };
-  if (process.env.CHROMIUM_PATH) {
-    puppeteerConfig.executablePath = process.env.CHROMIUM_PATH;
-  }
+  if (process.env.CHROMIUM_PATH) puppeteerConfig.executablePath = process.env.CHROMIUM_PATH;
 
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: userId, dataPath: path.join(DATA_DIR, userId, ".wwebjs_auth") }),
-    puppeteer: puppeteerConfig
+    puppeteer: puppeteerConfig,
   });
 
   client.on("qr", async (qr) => {
     qrcode.generate(qr, { small: true });
-    session.qr = await QRCode.toDataURL(qr);
+    session.qr     = await QRCode.toDataURL(qr);
     session.status = "qr";
     console.log(`[WA:${userId}] QR ready`);
   });
 
   client.on("ready", () => {
-    session.qr = null;
+    session.qr     = null;
     session.status = "ready";
     console.log(`[WA:${userId}] Ready`);
     restoreUserJobs(client, userId);
@@ -79,7 +78,8 @@ function createClient(userId) {
 
   client.on("disconnected", (reason) => {
     session.status = "disconnected";
-    session.qr = null;
+    session.qr     = null;
+    contactsCache.delete(userId);
     console.log(`[WA:${userId}] Disconnected: ${reason}`);
   });
 
@@ -101,11 +101,8 @@ function createClient(userId) {
   return session;
 }
 
-function getSession(userId) {
-  return userSessions.get(userId);
-}
+function getSession(userId) { return userSessions.get(userId); }
 
-// ── Restore existing users' sessions on startup ──────────────────────────────
 function restoreExistingSessions() {
   const usersFile = path.join(DATA_DIR, "users.json");
   if (!fs.existsSync(usersFile)) return;
@@ -120,23 +117,55 @@ function restoreExistingSessions() {
   }
 }
 
-// ── Express ──────────────────────────────────────────────────────────────────
+// ── Input validation helpers ──────────────────────────────────────────────────
+const MAX_MSG_LEN   = 4096;
+const MAX_RECIP_LEN = 20;   // digits only after stripping
+function validateRecipient(r) {
+  const digits = (r || "").replace(/[^0-9]/g, "");
+  if (digits.length < 7 || digits.length > 15) return null;
+  return digits;
+}
+
+// ── Express ───────────────────────────────────────────────────────────────────
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
 
-// ── Pages — MUST be before express.static so / always serves login.html ──────
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-app.get("/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
+      styleSrc:   ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com"],
+      fontSrc:    ["'self'", "fonts.gstatic.com"],
+      imgSrc:     ["'self'", "data:"],
+      connectSrc: ["'self'"],
+    },
+  },
+}));
+
+// CORS — restrict to your own origin in production
+const ALLOWED_ORIGIN = process.env.BASE_URL || "http://localhost:3000";
+app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
+
+// Body limits — prevent multi-MB payloads from exhausting memory
+app.use(bodyParser.json({ limit: "64kb" }));
+
+// Rate limiting on auth endpoints — prevent brute-force
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,  // 1 minute
+  max:      10,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { error: "Too many attempts, please try again in a minute." },
 });
 
+// ── Pages ────────────────────────────────────────────────────────────────────
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
+app.get("/dashboard", (req, res) => res.sendFile(path.join(__dirname, "public", "dashboard.html")));
 app.use(express.static(path.join(__dirname, "public")));
 
-// ── Auth routes (public) ─────────────────────────────────────────────────────
-app.post("/api/auth/signup", (req, res) => {
+// ── Auth (public) ─────────────────────────────────────────────────────────────
+app.post("/api/auth/signup", authLimiter, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email and password required." });
   const result = signup(email, password);
@@ -145,7 +174,7 @@ app.post("/api/auth/signup", (req, res) => {
   res.json(result);
 });
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", authLimiter, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email and password required." });
   const result = login(email, password);
@@ -154,43 +183,40 @@ app.post("/api/auth/login", (req, res) => {
   res.json(result);
 });
 
-// ── Google OAuth (public) ────────────────────────────────────────────────────
+// ── Google OAuth (public) ─────────────────────────────────────────────────────
 app.get("/api/auth/google", (req, res) => {
-  res.redirect(googleAuthURL());
+  try { res.redirect(googleAuthURL()); }
+  catch(e) { res.redirect("/?error=" + encodeURIComponent(e.message)); }
 });
 
 app.get("/api/auth/google/callback", async (req, res) => {
   try {
-    const { token, email } = await googleCallback(req.query.code);
-    if (!userSessions.has(token)) {
-      // load user id from token payload to start WA session
-      const { verifyToken } = require("./auth");
-      const payload = verifyToken(token);
-      if (payload && !userSessions.has(payload.id)) createClient(payload.id);
-    }
+    const { token, id, email } = await googleCallback(req.query.code);
+    if (!userSessions.has(id)) createClient(id);
+    // Use JSON.stringify to safely embed values — prevents XSS via special characters in email
+    const safeData = JSON.stringify({ token, email });
     res.send(`<!DOCTYPE html><html><head><script>
-      localStorage.setItem("wabot-token","${token}");
-      localStorage.setItem("wabot-email","${email}");
-      window.location.href="/dashboard";
+      (function(){
+        var d=${safeData};
+        localStorage.setItem("wabot-token", d.token);
+        localStorage.setItem("wabot-email", d.email);
+        window.location.href="/dashboard";
+      })();
     </script></head><body></body></html>`);
   } catch(e) {
     console.error("[Google OAuth]", e.message);
-    res.redirect("/?error=" + encodeURIComponent(e.message));
+    res.redirect("/?error=" + encodeURIComponent("Google sign-in failed. Please try again."));
   }
 });
 
-// ── All routes below require auth ────────────────────────────────────────────
+// ── All routes below require auth ─────────────────────────────────────────────
 app.use("/api", requireAuth);
 
 // ── Status / QR ──────────────────────────────────────────────────────────────
 app.get("/api/status", (req, res) => {
   const session = getSession(req.user.id);
   if (!session) return res.json({ connected: false, status: "no_session" });
-  res.json({
-    connected: session.status === "ready",
-    status: session.status,
-    info: session.client?.info || null
-  });
+  res.json({ connected: session.status === "ready", status: session.status, info: session.client?.info || null });
 });
 
 app.get("/api/qr-data", (req, res) => {
@@ -202,79 +228,52 @@ app.get("/api/qr-data", (req, res) => {
 
 app.post("/api/logout-whatsapp", async (req, res) => {
   const session = getSession(req.user.id);
-
-  // Force-cleanup: clears state, wipes auth files, and starts a fresh session.
-  // Called regardless of whether the graceful logout below succeeds.
   const forceCleanup = () => {
-    if (session) {
-      session.status = "disconnected";
-      session.qr = null;
-    }
+    if (session) { session.status = "disconnected"; session.qr = null; }
     userSessions.delete(req.user.id);
-
-    // Delete the saved WhatsApp auth so the next session shows a fresh QR
+    contactsCache.delete(req.user.id);
     const authPath = path.join(DATA_DIR, req.user.id, ".wwebjs_auth");
     if (fs.existsSync(authPath)) {
       try { fs.rmSync(authPath, { recursive: true, force: true }); }
-      catch (e) { console.error(`[WA:${req.user.id}] Could not clear auth files:`, e.message); }
+      catch (e) { console.error(`[WA:${req.user.id}] Could not clear auth:`, e.message); }
     }
-
-    // Spin up a new (unauthenticated) client so the QR appears immediately
     setTimeout(() => createClient(req.user.id), 1500);
   };
-
-  // ── Step 1: graceful logout with a 6 s timeout ───────────────────────────
-  if (session && session.client) {
-    try {
-      await Promise.race([
-        session.client.logout(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("logout timeout")), 6000))
-      ]);
-    } catch (e) {
-      console.warn(`[WA:${req.user.id}] Graceful logout failed (${e.message}), forcing cleanup…`);
-    }
-
-    // ── Step 2: destroy the browser/puppeteer process ──────────────────────
-    try {
-      await Promise.race([
-        session.client.destroy(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("destroy timeout")), 4000))
-      ]);
-    } catch (e) {
-      // destroy() errors are expected when the client is already gone
-    }
+  if (session?.client) {
+    try { await Promise.race([session.client.logout(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),6000))]); } catch(e) { console.warn(`[WA:${req.user.id}] Graceful logout failed:`, e.message); }
+    try { await Promise.race([session.client.destroy(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),4000))]); } catch(e) {}
   }
-
   forceCleanup();
   res.json({ success: true });
 });
 
-// ── Contacts ─────────────────────────────────────────────────────────────────
+// ── Contacts (server-side cached) ─────────────────────────────────────────────
 app.get("/api/contacts", async (req, res) => {
   const session = getSession(req.user.id);
   if (!session || session.status !== "ready")
     return res.status(503).json({ error: "WhatsApp not connected." });
+
+  const cached = contactsCache.get(req.user.id);
+  if (cached && Date.now() - cached.fetchedAt < CONTACTS_TTL)
+    return res.json(cached.data);
+
   try {
     const contacts = await session.client.getContacts();
     const seen = new Map();
     contacts
-      .filter(c => !c.isGroup && c.id && c.id.user)
+      .filter(c => !c.isGroup && c.id?.user)
       .forEach(c => {
-        // c.id.user is the most reliable phone number field
         const num = c.id.user.replace(/\D/g, "");
-        if (!num || num.length < 7) return;
-        // Prefer saved contact name, then verified/short name, then WA pushname
-        const raw = (c.name || c.verifiedName || c.shortName || c.pushname || "").trim();
-        // A real name: not empty, not all digits, not just dots/symbols, has at least one letter
-        const isRealName = raw.length > 1 && /[a-zA-Z\u00C0-\u024F\u0600-\u06FF\u0900-\u097F]/.test(raw);
-        const bestName = isRealName ? raw : "";
+        if (!num || num.length < 7 || num.length > 15) return;
+        const raw      = (c.name || c.verifiedName || c.shortName || c.pushname || "").trim();
+        const isReal   = raw.length > 1 && /[a-zA-Z\u00C0-\u024F\u0600-\u06FF\u0900-\u097F]/.test(raw);
+        const bestName = isReal ? raw : "";
         const existing = seen.get(num);
-        if (!existing || (!existing.name && bestName)) {
+        if (!existing || (!existing.name && bestName))
           seen.set(num, { id: c.id._serialized, name: bestName, number: num });
-        }
       });
-    const result = Array.from(seen.values())
-      .sort((a, b) => (a.name || a.number).localeCompare(b.name || b.number));
+    const result = Array.from(seen.values()).sort((a,b) => (a.name||a.number).localeCompare(b.name||b.number));
+    contactsCache.set(req.user.id, { data: result, fetchedAt: Date.now() });
     res.json(result);
   } catch(e) {
     res.status(500).json({ error: e.message });
@@ -290,12 +289,17 @@ app.post("/api/scheduled", (req, res) => {
   const { recipient, message, sendAt, recipientName } = req.body;
   if (!recipient || !message || !sendAt)
     return res.status(400).json({ error: "recipient, message and sendAt are required." });
+  if (typeof message !== "string" || message.length > MAX_MSG_LEN)
+    return res.status(400).json({ error: `Message must be ${MAX_MSG_LEN} characters or fewer.` });
+  const cleanRecipient = validateRecipient(recipient);
+  if (!cleanRecipient)
+    return res.status(400).json({ error: "Invalid recipient number. Use 7–15 digits, country code first." });
   const sendTime = new Date(sendAt);
   if (isNaN(sendTime) || sendTime <= new Date())
     return res.status(400).json({ error: "sendAt must be a valid future date." });
   const session = getSession(req.user.id);
   if (!session) return res.status(503).json({ error: "Session not found." });
-  const job = scheduleMessage(session.client, req.user.id, { recipient, recipientName, message, sendAt: sendTime });
+  const job = scheduleMessage(session.client, req.user.id, { recipient: cleanRecipient, recipientName, message, sendAt: sendTime });
   res.json({ success: true, job });
 });
 
@@ -303,11 +307,17 @@ app.patch("/api/scheduled/:id", (req, res) => {
   const { recipient, message, sendAt, recipientName } = req.body;
   if (!recipient || !message || !sendAt)
     return res.status(400).json({ error: "recipient, message and sendAt are required." });
+  if (typeof message !== "string" || message.length > MAX_MSG_LEN)
+    return res.status(400).json({ error: `Message must be ${MAX_MSG_LEN} characters or fewer.` });
+  const cleanRecipient = validateRecipient(recipient);
+  if (!cleanRecipient)
+    return res.status(400).json({ error: "Invalid recipient number." });
   const sendTime = new Date(sendAt);
   if (isNaN(sendTime) || sendTime <= new Date())
     return res.status(400).json({ error: "sendAt must be a valid future date." });
   const session = getSession(req.user.id);
-  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient, recipientName, message, sendAt: sendTime });
+  if (!session) return res.status(503).json({ error: "WhatsApp session not found." });
+  const job = editScheduledMessage(session.client, req.user.id, req.params.id, { recipient: cleanRecipient, recipientName, message, sendAt: sendTime });
   if (!job) return res.status(404).json({ error: "Job not found or not editable." });
   res.json({ success: true, job });
 });
@@ -319,9 +329,7 @@ app.delete("/api/scheduled/:id", (req, res) => {
 });
 
 // ── Trash ─────────────────────────────────────────────────────────────────────
-app.get("/api/trash", (req, res) => {
-  res.json(getTrashedMessages(req.user.id));
-});
+app.get("/api/trash", (req, res) => res.json(getTrashedMessages(req.user.id)));
 
 app.post("/api/trash/:id/restore", (req, res) => {
   const session = getSession(req.user.id);
@@ -336,20 +344,15 @@ app.delete("/api/trash/:id", (req, res) => {
   res.json({ success: true });
 });
 
-// ── Auto-reply ────────────────────────────────────────────────────────────────
-app.get("/api/autoreply", (req, res) => {
-  res.json(getAutoReplyConfig(req.user.id));
-});
-
+// ── Auto-reply ─────────────────────────────────────────────────────────────────
+app.get("/api/autoreply", (req, res) => res.json(getAutoReplyConfig(req.user.id)));
 app.put("/api/autoreply", (req, res) => {
   updateAutoReplyConfig(req.user.id, req.body);
   res.json({ success: true, config: getAutoReplyConfig(req.user.id) });
 });
 
 // ── Templates ─────────────────────────────────────────────────────────────────
-app.get("/api/templates", (req, res) => {
-  res.json(getTemplates(req.user.id));
-});
+app.get("/api/templates", (req, res) => res.json(getTemplates(req.user.id)));
 app.get("/api/templates/:id", (req, res) => {
   const t = getTemplate(req.user.id, req.params.id);
   if (!t) return res.status(404).json({ error: "Template not found." });

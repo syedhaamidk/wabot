@@ -1,43 +1,46 @@
-const fs = require("fs");
-const path = require("path");
+const fs     = require("fs");
+const path   = require("path");
 const crypto = require("crypto");
+const https  = require("https");
 
-// Use DATA_DIR env var if set (Railway Volume mount), else local data/
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const DATA_DIR   = process.env.DATA_DIR || path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// JWT_SECRET must be a fixed env variable — never use Math.random() as it
-// generates a new secret on every restart, invalidating all existing tokens.
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.error("[auth] FATAL: JWT_SECRET env variable not set. Add it in Railway → Variables.");
+  console.error("[auth] FATAL: JWT_SECRET env variable not set.");
   process.exit(1);
 }
 
 function base64url(str) {
-  return Buffer.from(str).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  return Buffer.from(str).toString("base64")
+    .replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
 }
 
 function signToken(payload) {
-  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const header = base64url(JSON.stringify({ alg:"HS256", typ:"JWT" }));
   const body   = base64url(JSON.stringify({ ...payload, iat: Date.now() }));
-  const sig    = crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest("base64")
-                   .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  const sig    = crypto.createHmac("sha256", JWT_SECRET)
+    .update(`${header}.${body}`).digest("base64")
+    .replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
   return `${header}.${body}.${sig}`;
 }
 
 function verifyToken(token) {
   try {
     const [header, body, sig] = token.split(".");
-    const expected = crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest("base64")
-                       .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-    if (sig !== expected) return null;
+    const expected = crypto.createHmac("sha256", JWT_SECRET)
+      .update(`${header}.${body}`).digest("base64")
+      .replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+    const sBuf = Buffer.from(sig);
+    const eBuf = Buffer.from(expected);
+    if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
     const payload = JSON.parse(Buffer.from(body, "base64").toString());
-    if (Date.now() - payload.iat > 30 * 24 * 60 * 60 * 1000) return null;
+    if (Date.now() - payload.iat > 30*24*60*60*1000) return null;
     return payload;
   } catch { return null; }
 }
@@ -60,12 +63,15 @@ function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 function signup(email, password) {
+  const key = (email || "").toLowerCase().trim();
+  // Validate format FIRST — prevents email-existence oracle via error message difference
+  if (!EMAIL_RE.test(key))             return { error: "Invalid email address." };
+  if (!password || password.length < 8) return { error: "Password must be at least 8 characters." };
   const users = loadUsers();
-  const key = email.toLowerCase().trim();
   if (users[key]) return { error: "Email already registered." };
-  if (!email.includes("@")) return { error: "Invalid email." };
-  if (password.length < 6) return { error: "Password must be at least 6 characters." };
   const id = crypto.randomUUID();
   const { hash, salt } = hashPassword(password);
   users[key] = { id, email: key, hash, salt, createdAt: new Date().toISOString() };
@@ -76,18 +82,20 @@ function signup(email, password) {
 }
 
 function login(email, password) {
+  const key   = (email || "").toLowerCase().trim();
   const users = loadUsers();
-  const key = email.toLowerCase().trim();
-  const user = users[key];
-  if (!user) return { error: "Invalid email or password." };
-  const { hash } = hashPassword(password, user.salt);
-  if (hash !== user.hash) return { error: "Invalid email or password." };
+  const user  = users[key];
+  // Always hash to prevent timing-based user enumeration
+  const dummySalt = crypto.randomBytes(16).toString("hex");
+  const { hash } = hashPassword(password || "", user?.salt || dummySalt);
+  if (!user || hash !== user.hash) return { error: "Invalid email or password." };
   return { token: signToken({ id: user.id, email: key }), id: user.id, email: key };
 }
 
+// Token accepted via Authorization header ONLY — NOT query params (they leak into logs)
 function requireAuth(req, res, next) {
-  const auth = req.headers.authorization || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : req.query._token;
+  const auth  = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!token) return res.status(401).json({ error: "Unauthorized." });
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: "Invalid or expired token." });
@@ -95,13 +103,10 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// see bottom for full exports
-
-// ─── GOOGLE OAUTH ───────────────────────────────────────────────────────────
-// Required env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_URL
-// e.g. BASE_URL=https://yourapp.up.railway.app
-
+// ── Google OAuth ──────────────────────────────────────────────────────────────
 function googleAuthURL() {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.BASE_URL)
+    throw new Error("GOOGLE_CLIENT_ID and BASE_URL env vars required.");
   const params = new URLSearchParams({
     client_id:     process.env.GOOGLE_CLIENT_ID,
     redirect_uri:  process.env.BASE_URL + "/api/auth/google/callback",
@@ -129,7 +134,7 @@ function httpsPost(url, body) {
     const u = new URL(url);
     const opts = {
       hostname: u.hostname, path: u.pathname, method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(payload) }
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(payload) },
     };
     const req = https.request(opts, res => {
       let data = "";
@@ -143,7 +148,7 @@ function httpsPost(url, body) {
 }
 
 async function googleCallback(code) {
-  // Exchange code for tokens
+  if (!code) throw new Error("Missing OAuth code.");
   const tokens = await httpsPost("https://oauth2.googleapis.com/token", {
     code,
     client_id:     process.env.GOOGLE_CLIENT_ID,
@@ -151,17 +156,9 @@ async function googleCallback(code) {
     redirect_uri:  process.env.BASE_URL + "/api/auth/google/callback",
     grant_type:    "authorization_code",
   });
-
   if (tokens.error) throw new Error(tokens.error_description || tokens.error);
-
-  // Fetch user info
-  const info = await httpsGet(
-    "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + tokens.access_token
-  );
-
-  if (!info.email) throw new Error("Could not get email from Google.");
-
-  // Upsert user — Google users have no password/salt
+  const info = await httpsGet("https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + tokens.access_token);
+  if (!info.email) throw new Error("Could not retrieve email from Google.");
   const users = loadUsers();
   const key   = info.email.toLowerCase().trim();
   if (!users[key]) {
@@ -171,7 +168,6 @@ async function googleCallback(code) {
     const userDir = path.join(DATA_DIR, id);
     if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
   }
-
   const user = users[key];
   return { token: signToken({ id: user.id, email: key }), id: user.id, email: key };
 }

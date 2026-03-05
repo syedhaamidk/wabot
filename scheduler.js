@@ -1,15 +1,17 @@
-const fs = require("fs");
-const path = require("path");
+const fs     = require("fs");
+const path   = require("path");
 const crypto = require("crypto");
 
-// ── Per-user file paths ──────────────────────────────────────────────────────
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+
+// ── Per-user file paths ───────────────────────────────────────────────────────
 function userFile(userId, name) {
-  const dir = path.join(__dirname, "data", userId);
+  const dir = path.join(DATA_DIR, userId);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return path.join(dir, name);
 }
 
-// ── In-memory store keyed by userId ─────────────────────────────────────────
+// ── In-memory store ──────────────────────────────────────────────────────────
 const userScheduled = new Map(); // userId -> Map<id, job>
 const userTrashed   = new Map(); // userId -> Map<id, job>
 
@@ -22,28 +24,43 @@ function getTrashedMap(userId) {
   return userTrashed.get(userId);
 }
 
-// ── Persistence ──────────────────────────────────────────────────────────────
+// ── Debounced async writes (avoids blocking event loop on every operation) ────
+const writeTimers = new Map();
+function debouncedWrite(key, fn, delay = 300) {
+  if (writeTimers.has(key)) clearTimeout(writeTimers.get(key));
+  writeTimers.set(key, setTimeout(() => {
+    writeTimers.delete(key);
+    fn();
+  }, delay));
+}
+
 function saveToFile(userId) {
-  const data = Array.from(getScheduled(userId).values()).map(({ timeout, ...job }) => job);
-  fs.writeFileSync(userFile(userId, "scheduled.json"), JSON.stringify(data, null, 2));
+  debouncedWrite(`sched:${userId}`, () => {
+    const data = Array.from(getScheduled(userId).values()).map(({ timeout, ...job }) => job);
+    fs.writeFile(userFile(userId, "scheduled.json"), JSON.stringify(data, null, 2), err => {
+      if (err) console.error(`[Scheduler:${userId}] Save error:`, err.message);
+    });
+  });
 }
 
 function saveTrash(userId) {
-  const data = Array.from(getTrashedMap(userId).values());
-  fs.writeFileSync(userFile(userId, "trash.json"), JSON.stringify(data, null, 2));
+  debouncedWrite(`trash:${userId}`, () => {
+    const data = Array.from(getTrashedMap(userId).values());
+    fs.writeFile(userFile(userId, "trash.json"), JSON.stringify(data, null, 2), err => {
+      if (err) console.error(`[Scheduler:${userId}] Trash save error:`, err.message);
+    });
+  });
 }
 
 function loadUserData(userId) {
-  // Load scheduled
   const sf = userFile(userId, "scheduled.json");
   if (fs.existsSync(sf)) {
     try {
       const items = JSON.parse(fs.readFileSync(sf, "utf8"));
       const m = getScheduled(userId);
       items.forEach(j => m.set(j.id, { ...j, timeout: null }));
-    } catch(e) { console.error(`[Scheduler:${userId}] load error:`, e.message); }
+    } catch(e) { console.error(`[Scheduler:${userId}] Load error:`, e.message); }
   }
-  // Load trash
   const tf = userFile(userId, "trash.json");
   if (fs.existsSync(tf)) {
     try {
@@ -54,22 +71,19 @@ function loadUserData(userId) {
   }
 }
 
-// ── Wait for client ready ────────────────────────────────────────────────────
+// ── Wait for WA client ready ─────────────────────────────────────────────────
 function waitForClient(client, maxWaitMs = 60000) {
   return new Promise((resolve, reject) => {
     if (client.info) return resolve();
-    const start = Date.now();
+    const start    = Date.now();
     const interval = setInterval(() => {
-      if (client.info) { clearInterval(interval); return resolve(); }
-      if (Date.now() - start >= maxWaitMs) {
-        clearInterval(interval);
-        reject(new Error("WhatsApp client not ready after " + maxWaitMs / 1000 + "s"));
-      }
+      if (client.info)                       { clearInterval(interval); return resolve(); }
+      if (Date.now() - start >= maxWaitMs)   { clearInterval(interval); reject(new Error(`WhatsApp client not ready after ${maxWaitMs/1000}s`)); }
     }, 1000);
   });
 }
 
-// ── Core send logic ──────────────────────────────────────────────────────────
+// ── Core send ────────────────────────────────────────────────────────────────
 async function sendJob(client, userId, job) {
   const chatId = job.recipient.includes("@")
     ? job.recipient
@@ -80,22 +94,16 @@ async function sendJob(client, userId, job) {
     await client.sendMessage(chatId, job.message);
     console.log(`[Scheduler:${userId}] Sent to ${job.recipient}`);
     const scheduled = getScheduled(userId);
-    const existing = scheduled.get(job.id);
+    const existing  = scheduled.get(job.id);
     if (existing) {
       scheduled.set(job.id, { ...existing, status: "sent", sentAt: new Date().toISOString(), timeout: null });
       saveToFile(userId);
     }
     return true;
   } catch (err) {
-    const isTimeout = err.message && (
-      err.message.includes("timed out") ||
-      err.message.includes("protocolTimeout") ||
-      err.message.includes("Target closed") ||
-      err.message.includes("not ready")
-    );
-    console.error(`[Scheduler:${userId}] Failed (${isTimeout ? "timeout" : "error"}): ${err.message}`);
+    console.error(`[Scheduler:${userId}] Failed: ${err.message}`);
     const scheduled = getScheduled(userId);
-    const existing = scheduled.get(job.id);
+    const existing  = scheduled.get(job.id);
     if (existing) {
       scheduled.set(job.id, { ...existing, status: "failed", failedAt: new Date().toISOString(), error: err.message, timeout: null });
       saveToFile(userId);
@@ -105,36 +113,38 @@ async function sendJob(client, userId, job) {
 }
 
 // ── Retry with exponential backoff: 15s → 45s → 135s ────────────────────────
-function sendWithRetry(client, userId, job, attempts, delayMs) {
+const MAX_RETRIES = 3;
+function sendWithRetry(client, userId, job, attemptsLeft, delayMs) {
   const timeout = setTimeout(async () => {
     const scheduled = getScheduled(userId);
-    const existing = scheduled.get(job.id);
+    const existing  = scheduled.get(job.id);
     if (existing) {
       scheduled.set(job.id, { ...existing, status: "pending", timeout: null });
       saveToFile(userId);
     }
     const ok = await sendJob(client, userId, job);
-    if (!ok && attempts > 1) {
-      const nextDelay = delayMs * 3;
-      console.log(`[Scheduler:${userId}] Retry ${4 - attempts + 1}/3 in ${nextDelay / 1000}s`);
+    if (!ok && attemptsLeft > 1) {
+      const nextDelay  = delayMs * 3;
+      const attemptNum = MAX_RETRIES - attemptsLeft + 1;
+      console.log(`[Scheduler:${userId}] Retry ${attemptNum}/${MAX_RETRIES} in ${nextDelay/1000}s`);
       const current = scheduled.get(job.id);
       if (current) { scheduled.set(job.id, { ...current, status: "pending" }); saveToFile(userId); }
-      sendWithRetry(client, userId, job, attempts - 1, nextDelay);
+      sendWithRetry(client, userId, job, attemptsLeft - 1, nextDelay);
     }
   }, delayMs);
 
   const scheduled = getScheduled(userId);
-  const existing = scheduled.get(job.id);
+  const existing  = scheduled.get(job.id);
   if (existing) scheduled.set(job.id, { ...existing, timeout });
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
 function scheduleMessage(client, userId, { recipient, recipientName, message, sendAt }) {
-  const id = crypto.randomUUID();
+  const id       = crypto.randomUUID();
   const sendTime = new Date(sendAt);
-  const delay = sendTime.getTime() - Date.now();
-  const job = { id, recipient, recipientName: recipientName || recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
-  const timeout = setTimeout(() => sendWithRetry(client, userId, job, 3, 15000), delay);
+  const delay    = sendTime.getTime() - Date.now();
+  const job      = { id, recipient, recipientName: recipientName || recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
+  const timeout  = setTimeout(() => sendWithRetry(client, userId, job, MAX_RETRIES, 15000), delay);
   getScheduled(userId).set(id, { ...job, timeout });
   saveToFile(userId);
   return job;
@@ -142,14 +152,14 @@ function scheduleMessage(client, userId, { recipient, recipientName, message, se
 
 function editScheduledMessage(client, userId, id, { recipient, recipientName, message, sendAt }) {
   const scheduled = getScheduled(userId);
-  const existing = scheduled.get(id);
+  const existing  = scheduled.get(id);
   if (!existing || existing.status !== "pending") return null;
   if (existing.timeout) clearTimeout(existing.timeout);
   const sendTime = new Date(sendAt);
-  const delay = sendTime.getTime() - Date.now();
+  const delay    = sendTime.getTime() - Date.now();
   if (delay <= 0) return null;
   const updatedJob = { ...existing, recipient, recipientName: recipientName || existing.recipientName || recipient, message, sendAt: sendTime.toISOString(), editedAt: new Date().toISOString() };
-  const timeout = setTimeout(() => sendWithRetry(client, userId, updatedJob, 3, 15000), delay);
+  const timeout    = setTimeout(() => sendWithRetry(client, userId, updatedJob, MAX_RETRIES, 15000), delay);
   scheduled.set(id, { ...updatedJob, timeout });
   saveToFile(userId);
   const { timeout: _t, ...job } = { ...updatedJob, timeout };
@@ -158,7 +168,7 @@ function editScheduledMessage(client, userId, id, { recipient, recipientName, me
 
 function cancelScheduledMessage(userId, id) {
   const scheduled = getScheduled(userId);
-  const job = scheduled.get(id);
+  const job       = scheduled.get(id);
   if (!job) return null;
   if (job.timeout) clearTimeout(job.timeout);
   const { timeout, ...clean } = job;
@@ -171,20 +181,22 @@ function cancelScheduledMessage(userId, id) {
 
 function restoreFromTrash(client, userId, id) {
   const trashed = getTrashedMap(userId);
-  const job = trashed.get(id);
+  const job     = trashed.get(id);
   if (!job) return null;
   trashed.delete(id);
   saveTrash(userId);
   const scheduled = getScheduled(userId);
   if (job.status === "pending") {
     const sendTime = new Date(job.sendAt).getTime();
-    const now = Date.now();
+    const now      = Date.now();
     if (sendTime > now) {
-      const timeout = setTimeout(() => sendJob(client, userId, job), sendTime - now);
+      // Future: schedule normally with retries
+      const timeout = setTimeout(() => sendWithRetry(client, userId, job, MAX_RETRIES, 15000), sendTime - now);
       scheduled.set(job.id, { ...job, timeout });
     } else {
+      // Overdue: send immediately with retries (was using sendJob without retries before — fixed)
       scheduled.set(job.id, { ...job, timeout: null });
-      sendWithRetry(client, userId, job, 3, 15000);
+      sendWithRetry(client, userId, job, MAX_RETRIES, 15000);
     }
   } else {
     scheduled.set(job.id, { ...job, timeout: null });
@@ -206,69 +218,27 @@ function permanentlyDelete(userId, id) {
 function getScheduledMessages(userId) {
   return Array.from(getScheduled(userId).values()).map(({ timeout, ...job }) => job);
 }
-
 function getTrashedMessages(userId) {
   return Array.from(getTrashedMap(userId).values());
 }
 
-// ── Restore all users' jobs on startup ───────────────────────────────────────
-function restoreAllJobs(getUserClient) {
-  const dataDir = path.join(__dirname, "data");
-  if (!fs.existsSync(dataDir)) return;
-
-  const entries = fs.readdirSync(dataDir, { withFileTypes: true });
-  entries.forEach(entry => {
-    if (!entry.isDirectory()) return;
-    const userId = entry.name;
-    if (userId === "users.json") return; // skip non-dir
-
-    loadUserData(userId);
-
-    const client = getUserClient(userId);
-    if (!client) return;
-
-    const scheduled = getScheduled(userId);
-    const now = Date.now();
-    let restored = 0, sentLate = 0;
-
-    scheduled.forEach(job => {
-      if (job.status === "sent" || job.status === "failed") return;
-      const sendTime = new Date(job.sendAt).getTime();
-      if (sendTime > now) {
-        const delay = sendTime - now;
-        const timeout = setTimeout(() => sendJob(client, userId, job), delay);
-        scheduled.set(job.id, { ...job, timeout });
-        restored++;
-      } else {
-        scheduled.set(job.id, { ...job, timeout: null });
-        sendWithRetry(client, userId, job, 3, 15000);
-        sentLate++;
-      }
-    });
-
-    if (restored + sentLate > 0)
-      console.log(`[Scheduler:${userId}] Restored ${restored} future, ${sentLate} late-send retries`);
-  });
-}
-
-// ── Restore single user's jobs (called when their client connects) ────────────
+// ── Restore single user's jobs on client connect ──────────────────────────────
 function restoreUserJobs(client, userId) {
   loadUserData(userId);
   const scheduled = getScheduled(userId);
-  const now = Date.now();
+  const now       = Date.now();
   let restored = 0, sentLate = 0, skipped = 0;
 
   scheduled.forEach(job => {
     if (job.status === "sent" || job.status === "failed") { skipped++; return; }
     const sendTime = new Date(job.sendAt).getTime();
     if (sendTime > now) {
-      const delay = sendTime - now;
-      const timeout = setTimeout(() => sendJob(client, userId, job), delay);
+      const timeout = setTimeout(() => sendWithRetry(client, userId, job, MAX_RETRIES, 15000), sendTime - now);
       scheduled.set(job.id, { ...job, timeout });
       restored++;
     } else {
       scheduled.set(job.id, { ...job, timeout: null });
-      sendWithRetry(client, userId, job, 3, 15000);
+      sendWithRetry(client, userId, job, MAX_RETRIES, 15000);
       sentLate++;
     }
   });
@@ -278,13 +248,8 @@ function restoreUserJobs(client, userId) {
 }
 
 module.exports = {
-  scheduleMessage,
-  editScheduledMessage,
-  cancelScheduledMessage,
-  restoreFromTrash,
-  permanentlyDelete,
-  getScheduledMessages,
-  getTrashedMessages,
-  restoreUserJobs,
-  loadUserData
+  scheduleMessage, editScheduledMessage, cancelScheduledMessage,
+  restoreFromTrash, permanentlyDelete,
+  getScheduledMessages, getTrashedMessages,
+  restoreUserJobs, loadUserData,
 };

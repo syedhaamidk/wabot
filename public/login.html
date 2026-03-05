@@ -5,15 +5,15 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimum-scale=1.0"/>
-<meta name="theme-color" content="#060b14"/>
+<meta name="theme-color" content="#060b14" id="theme-meta"/>
 <title>WABot — Sign in</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
 html,body{
   min-height:100vh;min-height:100dvh;
-  font-family:'DM Sans',sans-serif;
+  font-family:'Inter',sans-serif;
   background:#060b14;color:#e8edf7;
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
@@ -53,12 +53,12 @@ canvas#dots{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-even
   position:relative;overflow:hidden;
 }
 .brand-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 55%)}
-.brand-name{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.8px}
+.brand-name{font-family:'Inter',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.8px}
 .brand-name span{color:#0ee8a0}
 
 .hero{animation:slideUp .6s .08s cubic-bezier(.16,1,.3,1) both;margin-bottom:44px}
 .hero h1{
-  font-family:'Syne',sans-serif;
+  font-family:'Inter',sans-serif;
   font-size:clamp(28px,3.2vw,46px);font-weight:800;
   line-height:1.06;letter-spacing:-2px;
   color:#e8edf7;margin-bottom:18px;
@@ -101,11 +101,11 @@ canvas#dots{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-even
 .mob-logo{display:none;align-items:center;gap:10px;margin-bottom:26px}
 .mob-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(140deg,#0ee8a0,#06b86e);display:grid;place-items:center;box-shadow:0 4px 16px rgba(14,232,160,.28);position:relative;overflow:hidden}
 .mob-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 55%)}
-.mob-name{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;letter-spacing:-.5px}
+.mob-name{font-family:'Inter',sans-serif;font-size:19px;font-weight:700;letter-spacing:-.5px}
 .mob-name span{color:#0ee8a0}
 
 .card-head{margin-bottom:26px}
-.card-title{font-family:'Syne',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.6px;color:#e8edf7;margin-bottom:4px}
+.card-title{font-family:'Inter',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.6px;color:#e8edf7;margin-bottom:4px}
 .card-sub{font-size:13px;color:rgba(200,215,255,.32);font-weight:400}
 
 /* ── TABS ── */
@@ -151,7 +151,7 @@ canvas#dots{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-even
   border:1px solid rgba(255,255,255,.07);
   border-radius:11px;
   font-size:14.5px;letter-spacing:.1px;
-  font-family:'DM Sans',sans-serif;color:#e8edf7;
+  font-family:'Inter',sans-serif;color:#e8edf7;
   transition:all .2s ease;-webkit-appearance:none;appearance:none;
 }
 .field input:focus{
@@ -170,7 +170,7 @@ canvas#dots{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-even
 .btn{
   width:100%;padding:13px;border-radius:12px;
   font-size:14.5px;font-weight:600;letter-spacing:.15px;
-  font-family:'DM Sans',sans-serif;
+  font-family:'Inter',sans-serif;
   display:flex;align-items:center;justify-content:center;gap:8px;
   cursor:pointer;border:none;margin-top:8px;
   transition:all .18s ease;position:relative;overflow:hidden;
@@ -555,6 +555,37 @@ document.addEventListener("keydown",e=>{
   window.addEventListener("resize",resize);
 
   resize();draw();
+})();
+
+// ── System theme detection ────────────────────────────────────────────────────
+(function() {
+  const saved = localStorage.getItem("wabot-theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = saved ? saved === "dark" : prefersDark;
+  if (!isDark) {
+    // Apply light overrides
+    document.documentElement.style.setProperty("background", "#f2f5fb");
+    document.body.style.background = "#f2f5fb";
+    document.body.style.color = "#0d1120";
+    const meta = document.getElementById("theme-meta");
+    if (meta) meta.content = "#f2f5fb";
+    // Update card
+    const card = document.querySelector(".card");
+    if (card) { card.style.background = "rgba(255,255,255,.92)"; card.style.borderColor = "rgba(0,0,0,.08)"; }
+    // Update inputs
+    document.querySelectorAll(".field input").forEach(el => {
+      el.style.background = "rgba(0,0,0,.03)";
+      el.style.borderColor = "rgba(0,0,0,.1)";
+      el.style.color = "#0d1120";
+    });
+    // Update labels
+    document.querySelectorAll(".field label").forEach(el => { el.style.color = "rgba(15,25,65,.4)"; });
+    document.querySelectorAll(".card-title").forEach(el => { el.style.color = "#0d1120"; });
+    document.querySelectorAll(".card-sub").forEach(el => { el.style.color = "rgba(15,25,65,.5)"; });
+  }
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+    if (!localStorage.getItem("wabot-theme")) window.location.reload();
+  });
 })();
 </script>
 </body>
