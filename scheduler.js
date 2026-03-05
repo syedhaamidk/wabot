@@ -55,7 +55,7 @@ function loadUserData(userId) {
 }
 
 // ── Wait for client ready ────────────────────────────────────────────────────
-function waitForClient(client, maxWaitMs = 30000) {
+function waitForClient(client, maxWaitMs = 60000) {
   return new Promise((resolve, reject) => {
     if (client.info) return resolve();
     const start = Date.now();
@@ -76,7 +76,7 @@ async function sendJob(client, userId, job) {
     : job.recipient.replace(/[^0-9]/g, "") + "@c.us";
 
   try {
-    await waitForClient(client, 30000);
+    await waitForClient(client, 60000);
     await client.sendMessage(chatId, job.message);
     console.log(`[Scheduler:${userId}] Sent to ${job.recipient}`);
     const scheduled = getScheduled(userId);
@@ -133,8 +133,8 @@ function scheduleMessage(client, userId, { recipient, recipientName, message, se
   const id = crypto.randomUUID();
   const sendTime = new Date(sendAt);
   const delay = sendTime.getTime() - Date.now();
-  const timeout = setTimeout(() => sendJob(client, userId, { id, recipient, recipientName, message, sendAt: sendTime.toISOString() }), delay);
   const job = { id, recipient, recipientName: recipientName || recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
+  const timeout = setTimeout(() => sendWithRetry(client, userId, job, 3, 15000), delay);
   getScheduled(userId).set(id, { ...job, timeout });
   saveToFile(userId);
   return job;
@@ -148,11 +148,11 @@ function editScheduledMessage(client, userId, id, { recipient, recipientName, me
   const sendTime = new Date(sendAt);
   const delay = sendTime.getTime() - Date.now();
   if (delay <= 0) return null;
-  const timeout = setTimeout(() => sendJob(client, userId, { id, recipient, recipientName, message, sendAt: sendTime.toISOString() }), delay);
-  const updated = { ...existing, recipient, recipientName: recipientName || existing.recipientName || recipient, message, sendAt: sendTime.toISOString(), timeout, editedAt: new Date().toISOString() };
-  scheduled.set(id, updated);
+  const updatedJob = { ...existing, recipient, recipientName: recipientName || existing.recipientName || recipient, message, sendAt: sendTime.toISOString(), editedAt: new Date().toISOString() };
+  const timeout = setTimeout(() => sendWithRetry(client, userId, updatedJob, 3, 15000), delay);
+  scheduled.set(id, { ...updatedJob, timeout });
   saveToFile(userId);
-  const { timeout: _t, ...job } = updated;
+  const { timeout: _t, ...job } = { ...updatedJob, timeout };
   return job;
 }
 
