@@ -159,9 +159,20 @@ const authLimiter = rateLimit({
 });
 
 // ── Pages ────────────────────────────────────────────────────────────────────
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
-app.get("/dashboard", (req, res) => res.sendFile(path.join(__dirname, "public", "dashboard.html")));
-app.use(express.static(path.join(__dirname, "public")));
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "login.html")));
+app.get("/dashboard", (req, res) => res.sendFile(path.join(__dirname, "dashboard.html")));
+// Serve static assets (favicon etc.) — only from root, NOT exposing server JS files
+app.use(express.static(__dirname, {
+  index: false, // don't auto-serve index.html
+  setHeaders: (res, filePath) => {
+    // Only allow static asset file types — block .js server files
+    const allowed = [".html", ".css", ".ico", ".svg", ".png", ".jpg", ".webp", ".woff2", ".woff"];
+    const ext = require("path").extname(filePath).toLowerCase();
+    if (!allowed.includes(ext)) {
+      res.status(403).end();
+    }
+  }
+}));
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
 app.post("/api/auth/signup", authLimiter, (req, res) => {
