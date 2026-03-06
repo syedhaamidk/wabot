@@ -1026,32 +1026,30 @@ body.light .orb{opacity:.3}
 <script>
 
 
-// Wait for any pending OAuth exchange before checking token
-async function initAuth() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get("oauth");
-  if (code) {
-    history.replaceState(null, "", "/dashboard");
-    try {
-      const r = await fetch("/api/auth/oauth-token?code=" + encodeURIComponent(code));
-      if (r.ok) {
-        const d = await r.json();
-        if (d.token) localStorage.setItem("wabot-token", d.token);
-        if (d.email) localStorage.setItem("wabot-email", d.email);
-      }
-    } catch(err) {}
-  }
-  const TOKEN = localStorage.getItem("wabot-token");
-  if (!TOKEN) { window.location.href = "/"; return; }
-  window.__TOKEN = TOKEN;
-  startApp(TOKEN);
-}
-initAuth();
+const TOKEN = localStorage.getItem("wabot-token");
+const _oauthCode = new URLSearchParams(window.location.search).get("oauth");
 
-function startApp(TOKEN) {
+// If we have an oauth code, exchange it first before doing anything
+if (_oauthCode) {
+  history.replaceState(null, "", "/dashboard");
+  fetch("/api/auth/oauth-token?code=" + encodeURIComponent(_oauthCode))
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (d && d.token) {
+        localStorage.setItem("wabot-token", d.token);
+        localStorage.setItem("wabot-email", d.email || "");
+      }
+      // Reload so the page boots with the token now in localStorage
+      window.location.replace("/dashboard");
+    })
+    .catch(() => window.location.replace("/"));
+  // Stop all JS execution until reload
+  throw new Error("oauth-exchange");
+}
 const API = "/api";
 async function afetch(url, opts = {}) {
-  const headers = { "Authorization": "Bearer " + TOKEN };
+  const tok = localStorage.getItem("wabot-token") || TOKEN;
+  const headers = { "Authorization": "Bearer " + tok };
   if (opts.body) headers["Content-Type"] = "application/json";
   const res = await fetch(url, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
   if (res.status === 401) {
@@ -1471,7 +1469,6 @@ function checkFailedAlerts() {
     if (banner) banner.remove();
   }
 }
-} // end startApp
 </script>
 </body>
 </html>
