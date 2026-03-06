@@ -1078,13 +1078,26 @@ applyTheme();
 
 /* ── Sidebar ── */
 let sbExpanded = localStorage.getItem("wabot-sb") !== "collapsed";
+function isMobile(){ return window.innerWidth <= 640; }
 function applySb(){
   const sb = document.getElementById("sb");
   const main = document.querySelector(".main");
-  if(sbExpanded){ sb.classList.add("sb-x"); main.style.marginLeft="var(--sb-w)"; }
-  else { sb.classList.remove("sb-x"); main.style.marginLeft="var(--sb-col)"; }
+  if(isMobile()){
+    // On mobile: sidebar slides in/out as overlay, never affects margin
+    sb.classList.remove("sb-x");
+    main.style.marginLeft = "";
+  } else {
+    if(sbExpanded){ sb.classList.add("sb-x"); main.style.marginLeft="var(--sb-w)"; }
+    else { sb.classList.remove("sb-x"); main.style.marginLeft="var(--sb-col)"; }
+  }
 }
-function toggleSb(){ sbExpanded=!sbExpanded; localStorage.setItem("wabot-sb",sbExpanded?"expanded":"collapsed"); applySb(); }
+function toggleSb(){
+  if(isMobile()){ openSb(); return; }
+  sbExpanded=!sbExpanded;
+  localStorage.setItem("wabot-sb",sbExpanded?"expanded":"collapsed");
+  applySb();
+}
+window.addEventListener("resize", applySb);
 applySb();
 function openSb(){ document.getElementById("sb").classList.add("open"); document.getElementById("overlay").classList.add("open"); document.body.style.overflow="hidden"; }
 function closeSb(){ document.getElementById("sb").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); document.body.style.overflow=""; }
