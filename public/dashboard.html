@@ -1024,22 +1024,31 @@ body.light .orb{opacity:.3}
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-// Pick up Google OAuth token from hash fragment (CSP-safe redirect)
-(function() {
-  const hash = window.location.hash;
-  if (hash.startsWith("#oauth=")) {
-    try {
-      const params = new URLSearchParams(atob(hash.slice(7)));
-      const t = params.get("t"), e = params.get("e");
-      if (t) localStorage.setItem("wabot-token", t);
-      if (e) localStorage.setItem("wabot-email", e);
-    } catch(err) {}
-    history.replaceState(null, "", "/dashboard");
-  }
-})();
 
-const TOKEN = localStorage.getItem("wabot-token");
-if (!TOKEN) window.location.href = "/";
+
+// Wait for any pending OAuth exchange before checking token
+async function initAuth() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("oauth");
+  if (code) {
+    history.replaceState(null, "", "/dashboard");
+    try {
+      const r = await fetch("/api/auth/oauth-token?code=" + encodeURIComponent(code));
+      if (r.ok) {
+        const d = await r.json();
+        if (d.token) localStorage.setItem("wabot-token", d.token);
+        if (d.email) localStorage.setItem("wabot-email", d.email);
+      }
+    } catch(err) {}
+  }
+  const TOKEN = localStorage.getItem("wabot-token");
+  if (!TOKEN) { window.location.href = "/"; return; }
+  window.__TOKEN = TOKEN;
+  startApp(TOKEN);
+}
+initAuth();
+
+function startApp(TOKEN) {
 const API = "/api";
 async function afetch(url, opts = {}) {
   const headers = { "Authorization": "Bearer " + TOKEN };
@@ -1462,6 +1471,7 @@ function checkFailedAlerts() {
     if (banner) banner.remove();
   }
 }
+} // end startApp
 </script>
 </body>
 </html>

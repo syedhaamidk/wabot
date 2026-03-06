@@ -30,6 +30,16 @@ const { getTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplat
 // ── Per-user WhatsApp clients ────────────────────────────────────────────────
 const userSessions = new Map();
 
+// Temporary store for Google OAuth tokens (30s TTL) — avoids hash fragment browser issues
+const pendingOAuthTokens = new Map();
+function storePendingToken(token, email) {
+  const code = require("crypto").randomBytes(16).toString("hex");
+  pendingOAuthTokens.set(code, { token, email, at: Date.now() });
+  // Auto-cleanup after 30s
+  setTimeout(() => pendingOAuthTokens.delete(code), 30000);
+  return code;
+}
+
 // Per-user contacts cache (5-minute TTL) — avoids hammering WA on every picker open
 const contactsCache = new Map(); // userId -> { data, fetchedAt }
 const CONTACTS_TTL  = 5 * 60 * 1000;
@@ -182,26 +192,29 @@ app.get("/api/auth/google/callback", async (req, res) => {
   try {
     const { token, id, email } = await googleCallback(req.query.code);
     if (!userSessions.has(id)) createClient(id);
-    // Pass token via URL hash — never sent to server, picked up by dashboard JS (CSP-safe)
-    const params = new URLSearchParams({ t: token, e: email });
-    res.redirect("/dashboard#oauth=" + Buffer.from(params.toString()).toString("base64"));
+    // Store token temporarily server-side, redirect with a short-lived code
+    // (hash fragments are stripped by browsers on server redirects — this is more reliable)
+    const code = storePendingToken(token, email);
+    res.redirect("/dashboard?oauth=" + code);
   } catch(e) {
     console.error("[Google OAuth]", e.message);
     res.redirect("/?error=" + encodeURIComponent("Google sign-in failed. Please try again."));
   }
 });
 
-app.get("/api/debug-env", (req, res) => {
-  res.json({
-    hasClientId:     !!process.env.GOOGLE_CLIENT_ID,
-    hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-    baseUrl:         process.env.BASE_URL,
-    clientIdEnd:     (process.env.GOOGLE_CLIENT_ID || "").slice(-30),
-  });
+// ── Google OAuth code exchange (public) ──────────────────────────────────────
+app.get("/api/auth/oauth-token", (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).json({ error: "Missing code." });
+  const pending = pendingOAuthTokens.get(code);
+  if (!pending) return res.status(404).json({ error: "Code expired or invalid." });
+  if (Date.now() - pending.at > 30000) {
+    pendingOAuthTokens.delete(code);
+    return res.status(410).json({ error: "Code expired." });
+  }
+  pendingOAuthTokens.delete(code); // one-time use
+  res.json({ token: pending.token, email: pending.email });
 });
-
-// ── All routes below require auth ─────────────────────────────────────────────
-app.use("/api", requireAuth);
 
 // ── All routes below require auth ─────────────────────────────────────────────
 app.use("/api", requireAuth);
