@@ -162,7 +162,15 @@ const authLimiter = rateLimit({
 const PUBLIC = fs.existsSync(path.join(__dirname, "public")) ? path.join(__dirname, "public") : __dirname;
 app.get("/", (req, res) => res.sendFile(path.join(PUBLIC, "login.html")));
 app.get("/dashboard", (req, res) => res.sendFile(path.join(PUBLIC, "dashboard.html")));
-app.use(express.static(PUBLIC));
+// Only serve safe static asset types — never expose server .js files
+app.use(express.static(PUBLIC, {
+  index: false,
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath).toLowerCase();
+    const blocked = [".js", ".ts", ".json", ".env"];
+    if (blocked.includes(ext)) res.status(403).end();
+  }
+}));
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
 app.post("/api/auth/signup", authLimiter, (req, res) => {
@@ -266,24 +274,39 @@ app.get("/api/contacts", async (req, res) => {
     return res.json(cached.data);
 
   try {
-    const contacts = await session.client.getContacts();
+    const contacts = await Promise.race([
+      session.client.getContacts(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("getContacts timed out after 30s")), 30000))
+    ]);
+
     const seen = new Map();
-    contacts
-      .filter(c => !c.isGroup && c.id?.user)
-      .forEach(c => {
-        const num = c.id.user.replace(/\D/g, "");
-        if (!num || num.length < 7 || num.length > 15) return;
-        const raw      = (c.name || c.verifiedName || c.shortName || c.pushname || "").trim();
-        const isReal   = raw.length > 1 && /[a-zA-Z\u00C0-\u024F\u0600-\u06FF\u0900-\u097F]/.test(raw);
-        const bestName = isReal ? raw : "";
+    for (const c of contacts) {
+      try {
+        const user = c.id && c.id.user;
+        if (!user) continue;
+        // Skip groups
+        if (c.id._serialized && c.id._serialized.includes("@g.us")) continue;
+        const num = user.replace(/\D/g, "");
+        if (!num || num.length < 5) continue;
+        const name = (c.name || c.verifiedName || c.shortName || c.pushname || "").trim();
         const existing = seen.get(num);
-        if (!existing || (!existing.name && bestName))
-          seen.set(num, { id: c.id._serialized, name: bestName, number: num });
-      });
-    const result = Array.from(seen.values()).sort((a,b) => (a.name||a.number).localeCompare(b.name||b.number));
+        if (!existing || (!existing.name && name)) {
+          seen.set(num, { id: c.id._serialized || (num + "@c.us"), name, number: num });
+        }
+      } catch(e) { /* skip malformed contact */ }
+    }
+
+    const result = Array.from(seen.values()).sort((a, b) => {
+      if (a.name && !b.name) return -1;
+      if (!a.name && b.name) return 1;
+      return (a.name || a.number).localeCompare(b.name || b.number);
+    });
+
+    console.log(`[Contacts:${req.user.id}] ${result.length} contacts loaded`);
     contactsCache.set(req.user.id, { data: result, fetchedAt: Date.now() });
     res.json(result);
   } catch(e) {
+    console.error(`[Contacts:${req.user.id}] Error:`, e.message);
     res.status(500).json({ error: e.message });
   }
 });
