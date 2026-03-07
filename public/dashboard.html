@@ -1396,8 +1396,9 @@ async function disconnectWA(){
   try{
     const ctrl=new AbortController(),tid=setTimeout(()=>ctrl.abort(),10000);
     let r; try{ r=await afetch(API+"/logout-whatsapp",{method:"POST",signal:ctrl.signal}); }finally{ clearTimeout(tid); }
-    if(r&&r.ok){ toast("Disconnected — scan QR to reconnect"); chkStatus(); go("setup"); setTimeout(loadQR,2500); }
-    else toast("Could not disconnect","err");
+    go("setup"); setTimeout(loadQR, 2500);
+    if(r&&r.ok){ toast("Disconnected — scan QR to reconnect"); } else { toast("Disconnected"); }
+    chkStatus();
   }catch(e){
     if(e.name==="AbortError"){ toast("Timed out — try refreshing"); chkStatus(); }
     else toast("Server offline","err");
