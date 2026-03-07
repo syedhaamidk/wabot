@@ -372,6 +372,25 @@ app.delete("/api/scheduled/:id", (req, res) => {
   res.json({ success: true });
 });
 
+// Retry a failed message — reschedules it 30 seconds from now
+app.post("/api/scheduled/:id/retry", (req, res) => {
+  const session = getSession(req.user.id);
+  if (!session) return res.status(503).json({ error: "Session not found." });
+  const msgs = getScheduledMessages(req.user.id);
+  const job = msgs.find(m => m.id === req.params.id);
+  if (!job) return res.status(404).json({ error: "Message not found." });
+  if (job.status !== "failed") return res.status(400).json({ error: "Only failed messages can be retried." });
+  const retryAt = new Date(Date.now() + 30 * 1000); // 30s from now
+  const updated = editScheduledMessage(session.client, req.user.id, req.params.id, {
+    recipient: job.recipient,
+    recipientName: job.recipientName,
+    message: job.message,
+    sendAt: retryAt,
+  });
+  if (!updated) return res.status(500).json({ error: "Could not reschedule." });
+  res.json({ success: true, job: updated });
+});
+
 // ── Trash ─────────────────────────────────────────────────────────────────────
 app.get("/api/trash", (req, res) => res.json(getTrashedMessages(req.user.id)));
 
