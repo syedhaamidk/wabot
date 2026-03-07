@@ -8,6 +8,7 @@ const rateLimit  = require("express-rate-limit");
 const helmet     = require("helmet");
 const path       = require("path");
 const fs         = require("fs");
+const crypto     = require("crypto");
 
 const { signup, login, requireAuth, googleAuthURL, googleCallback } = require("./auth");
 
@@ -27,21 +28,20 @@ const {
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
 const { getTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, recordUsage } = require("./templates");
 
-// ── Per-user WhatsApp clients ────────────────────────────────────────────────
+// ── Per-user WhatsApp clients ─────────────────────────────────────────────────
 const userSessions = new Map();
 
-// Temporary store for Google OAuth tokens (30s TTL) — avoids hash fragment browser issues
+// Temporary store for Google OAuth tokens (30s TTL)
 const pendingOAuthTokens = new Map();
 function storePendingToken(token, email) {
-  const code = require("crypto").randomBytes(16).toString("hex");
+  const code = crypto.randomBytes(16).toString("hex");
   pendingOAuthTokens.set(code, { token, email, at: Date.now() });
-  // Auto-cleanup after 30s
   setTimeout(() => pendingOAuthTokens.delete(code), 30000);
   return code;
 }
 
-// Per-user contacts cache (5-minute TTL) — avoids hammering WA on every picker open
-const contactsCache = new Map(); // userId -> { data, fetchedAt }
+// Per-user contacts cache (5-minute TTL)
+const contactsCache = new Map();
 const CONTACTS_TTL  = 5 * 60 * 1000;
 
 function createClient(userId) {
@@ -127,9 +127,8 @@ function restoreExistingSessions() {
   }
 }
 
-// ── Input validation helpers ──────────────────────────────────────────────────
-const MAX_MSG_LEN   = 4096;
-const MAX_RECIP_LEN = 20;   // digits only after stripping
+// ── Input validation ──────────────────────────────────────────────────────────
+const MAX_MSG_LEN = 4096;
 function validateRecipient(r) {
   const digits = (r || "").replace(/[^0-9]/g, "");
   if (digits.length < 7 || digits.length > 15) return null;
@@ -139,37 +138,33 @@ function validateRecipient(r) {
 // ── Express ───────────────────────────────────────────────────────────────────
 const app = express();
 
-// Security headers
 app.use(helmet({ contentSecurityPolicy: false }));
-
-// CORS — restrict to your own origin in production
-const ALLOWED_ORIGIN = process.env.BASE_URL || "http://localhost:3000";
-app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
-
-// Body limits — prevent multi-MB payloads from exhausting memory
+app.use(cors({ origin: true, credentials: true }));
 app.use(bodyParser.json({ limit: "64kb" }));
 
-// Rate limiting on auth endpoints — prevent brute-force
 const authLimiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minute
-  max:      10,
+  windowMs: 60 * 1000,
+  max: 10,
   standardHeaders: true,
-  legacyHeaders:   false,
+  legacyHeaders: false,
   message: { error: "Too many attempts, please try again in a minute." },
 });
 
-// ── Pages ────────────────────────────────────────────────────────────────────
-const PUBLIC = fs.existsSync(path.join(__dirname, "public")) ? path.join(__dirname, "public") : __dirname;
+// ── Pages ─────────────────────────────────────────────────────────────────────
+const PUBLIC = fs.existsSync(path.join(__dirname, "public"))
+  ? path.join(__dirname, "public")
+  : __dirname;
+
 app.get("/", (req, res) => res.sendFile(path.join(PUBLIC, "login.html")));
 app.get("/dashboard", (req, res) => res.sendFile(path.join(PUBLIC, "dashboard.html")));
-// Only serve safe static asset types — never expose server .js files
+
+// Serve static assets only — block server .js files from being publicly accessible
 app.use(express.static(PUBLIC, {
   index: false,
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
-    const blocked = [".js", ".ts", ".json", ".env"];
-    if (blocked.includes(ext)) res.status(403).end();
-  }
+    if ([".js", ".ts", ".json", ".env"].includes(ext)) res.status(403).end();
+  },
 }));
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -201,8 +196,6 @@ app.get("/api/auth/google/callback", async (req, res) => {
   try {
     const { token, id, email } = await googleCallback(req.query.code);
     if (!userSessions.has(id)) createClient(id);
-    // Store token temporarily server-side, redirect with a short-lived code
-    // (hash fragments are stripped by browsers on server redirects — this is more reliable)
     const code = storePendingToken(token, email);
     res.redirect("/dashboard?oauth=" + code);
   } catch(e) {
@@ -211,24 +204,23 @@ app.get("/api/auth/google/callback", async (req, res) => {
   }
 });
 
-// ── Google OAuth code exchange (public) ──────────────────────────────────────
+// Exchange short-lived OAuth code for token (public — called by dashboard JS)
 app.get("/api/auth/oauth-token", (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).json({ error: "Missing code." });
   const pending = pendingOAuthTokens.get(code);
-  if (!pending) return res.status(404).json({ error: "Code expired or invalid." });
-  if (Date.now() - pending.at > 30000) {
+  if (!pending || Date.now() - pending.at > 30000) {
     pendingOAuthTokens.delete(code);
-    return res.status(410).json({ error: "Code expired." });
+    return res.status(410).json({ error: "Code expired. Please sign in again." });
   }
-  pendingOAuthTokens.delete(code); // one-time use
+  pendingOAuthTokens.delete(code);
   res.json({ token: pending.token, email: pending.email });
 });
 
 // ── All routes below require auth ─────────────────────────────────────────────
 app.use("/api", requireAuth);
 
-// ── Status / QR ──────────────────────────────────────────────────────────────
+// ── Status / QR ───────────────────────────────────────────────────────────────
 app.get("/api/status", (req, res) => {
   const session = getSession(req.user.id);
   if (!session) return res.json({ connected: false, status: "no_session" });
@@ -251,19 +243,19 @@ app.post("/api/logout-whatsapp", async (req, res) => {
     const authPath = path.join(DATA_DIR, req.user.id, ".wwebjs_auth");
     if (fs.existsSync(authPath)) {
       try { fs.rmSync(authPath, { recursive: true, force: true }); }
-      catch (e) { console.error(`[WA:${req.user.id}] Could not clear auth:`, e.message); }
+      catch(e) { console.error(`[WA:${req.user.id}] Could not clear auth:`, e.message); }
     }
     setTimeout(() => createClient(req.user.id), 1500);
   };
   if (session?.client) {
-    try { await Promise.race([session.client.logout(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),6000))]); } catch(e) { console.warn(`[WA:${req.user.id}] Graceful logout failed:`, e.message); }
-    try { await Promise.race([session.client.destroy(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),4000))]); } catch(e) {}
+    try { await Promise.race([session.client.logout(), new Promise((_,rej) => setTimeout(() => rej(), 6000))]); } catch(e) {}
+    try { await Promise.race([session.client.destroy(), new Promise((_,rej) => setTimeout(() => rej(), 4000))]); } catch(e) {}
   }
   forceCleanup();
   res.json({ success: true });
 });
 
-// ── Contacts (server-side cached) ─────────────────────────────────────────────
+// ── Contacts ──────────────────────────────────────────────────────────────────
 app.get("/api/contacts", async (req, res) => {
   const session = getSession(req.user.id);
   if (!session || session.status !== "ready")
@@ -276,7 +268,7 @@ app.get("/api/contacts", async (req, res) => {
   try {
     const contacts = await Promise.race([
       session.client.getContacts(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("getContacts timed out after 30s")), 30000))
+      new Promise((_, rej) => setTimeout(() => rej(new Error("getContacts timed out after 30s")), 30000)),
     ]);
 
     const seen = new Map();
@@ -284,31 +276,54 @@ app.get("/api/contacts", async (req, res) => {
       try {
         const user = c.id && c.id.user;
         if (!user) continue;
-        // Skip groups
-        if (c.id._serialized && c.id._serialized.includes("@g.us")) continue;
+
+        const serialized = c.id._serialized || "";
+        if (serialized.includes("@g.us"))        continue; // groups
+        if (serialized.includes("@broadcast"))   continue; // broadcast lists
+        if (serialized.includes("@newsletter"))  continue; // newsletters
+        if (user === "0" || user === "status")   continue; // system
+
         const num = user.replace(/\D/g, "");
-        if (!num || num.length < 5) continue;
-        const name = (c.name || c.verifiedName || c.shortName || c.pushname || "").trim();
-        const existing = seen.get(num);
-        if (!existing || (!existing.name && name)) {
-          seen.set(num, { id: c.id._serialized || (num + "@c.us"), name, number: num });
+        if (!num || num.length < 7 || num.length > 15) continue;
+
+        // Saved name takes priority; fall back to pushname
+        const savedName = (c.name || c.verifiedName || c.shortName || "").trim();
+        const pushname  = (c.pushname || "").trim();
+
+        // Only include contacts saved in phone OR known WA users — filters garbage system numbers
+        const isSaved = savedName.length > 0;
+        const isKnown = c.isMyContact || c.isUser;
+        if (!isSaved && !isKnown) continue;
+
+        const displayName = savedName || pushname;
+        const existing    = seen.get(num);
+        if (!existing || (!existing.name && displayName)) {
+          seen.set(num, { id: serialized || (num + "@c.us"), name: displayName, number: num });
         }
       } catch(e) { /* skip malformed contact */ }
     }
 
+    // Named contacts first, then alphabetical
     const result = Array.from(seen.values()).sort((a, b) => {
       if (a.name && !b.name) return -1;
       if (!a.name && b.name) return 1;
-      return (a.name || a.number).localeCompare(b.name || b.number);
+      if (a.name && b.name) return a.name.localeCompare(b.name);
+      return a.number.localeCompare(b.number);
     });
 
-    console.log(`[Contacts:${req.user.id}] ${result.length} contacts loaded`);
+    console.log(`[Contacts:${req.user.id}] ${result.length} contacts (${result.filter(c => c.name).length} named)`);
     contactsCache.set(req.user.id, { data: result, fetchedAt: Date.now() });
     res.json(result);
   } catch(e) {
     console.error(`[Contacts:${req.user.id}] Error:`, e.message);
     res.status(500).json({ error: e.message });
   }
+});
+
+// Force-refresh contacts cache
+app.post("/api/contacts/refresh", (req, res) => {
+  contactsCache.delete(req.user.id);
+  res.json({ success: true });
 });
 
 // ── Scheduled messages ────────────────────────────────────────────────────────
@@ -375,7 +390,7 @@ app.delete("/api/trash/:id", (req, res) => {
   res.json({ success: true });
 });
 
-// ── Auto-reply ─────────────────────────────────────────────────────────────────
+// ── Auto-reply ────────────────────────────────────────────────────────────────
 app.get("/api/autoreply", (req, res) => res.json(getAutoReplyConfig(req.user.id)));
 app.put("/api/autoreply", (req, res) => {
   updateAutoReplyConfig(req.user.id, req.body);
