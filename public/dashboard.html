@@ -258,6 +258,7 @@ body.light .orb{opacity:.3}
 .status-chip.live{background:var(--em-bg);border-color:var(--em-bd);color:var(--em)}
 .chip-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
 .status-chip.live .chip-dot{animation:blink 2s infinite;box-shadow:0 0 5px currentColor}
+@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
 
 /* ════════════════════════ BOTTOM NAV ════════════════════════ */
@@ -1353,6 +1354,17 @@ async function disconnectWA(){
 
 /* ── Contact Picker ── */
 let contacts=null,cpOpen=null;
+async function refreshContacts(prefix){
+  const btn=document.getElementById("cp-refresh-"+prefix);
+  if(btn){ btn.style.animation="spin 0.8s linear infinite"; btn.style.opacity="0.5"; btn.disabled=true; }
+  try {
+    await afetch(API+"/contacts/refresh", { method: "POST" });
+    contacts = null; // bust client cache
+    const list = await loadContacts();
+    renderContactDropdown(prefix, list, "");
+  } catch(e) {}
+  if(btn){ btn.style.animation=""; btn.style.opacity=""; btn.disabled=false; }
+}
 async function loadContacts(){
   if(contacts)return contacts;
   try{
@@ -1381,7 +1393,7 @@ async function toggleContactPicker(prefix){ const dd=getOrCreateDD(prefix); if(d
 function closeContactPicker(prefix){ const dd=document.getElementById(prefix+"-cp-dd"); if(dd)dd.style.display="none"; if(cpOpen===prefix)cpOpen=null; }
 function renderContactDropdown(prefix,list,query){
   const dd=getOrCreateDD(prefix),q=(query||"").toLowerCase().trim(),filtered=q?list.filter(c=>getDisplayName(c).toLowerCase().includes(q)||(c.number||"").includes(q)):list;
-  const searchHtml=`<div class="cp-search-wrap"><input id="cp-si-${prefix}" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" spellcheck="false"/></div>`;
+  const searchHtml=`<div class="cp-search-wrap" style="display:flex;align-items:center;gap:6px"><input id="cp-si-${prefix}" type="text" placeholder="Search…" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"/><button id="cp-refresh-${prefix}" title="Refresh contacts" style="background:none;border:none;cursor:pointer;color:var(--sub);padding:2px;flex-shrink:0;display:flex;align-items:center" onclick="refreshContacts('${prefix}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button></div>`;
   const bodyHtml=`<div class="cp-results">`+(!filtered.length?`<div class="cp-empty">${q?'No results for "'+esc(q)+'"':"No contacts"}</div>`:filtered.slice(0,100).map(c=>{const name=getDisplayName(c),inits=getInitials(name);return `<div class="cp-item" data-num="${esc(c.number)}" data-name="${esc(name)}"><div class="cp-av">${esc(inits)}</div><div style="min-width:0;direction:ltr;text-align:left"><div class="cp-name">${esc(name)}</div><div class="cp-num">+${esc(c.number)}</div></div></div>`;}).join(""))+`</div>`;
   dd.innerHTML=searchHtml+bodyHtml;
   const si=document.getElementById("cp-si-"+prefix);

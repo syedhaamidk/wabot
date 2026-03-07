@@ -42,7 +42,7 @@ function storePendingToken(token, email) {
 
 // Per-user contacts cache (5-minute TTL)
 const contactsCache = new Map();
-const CONTACTS_TTL  = 5 * 60 * 1000;
+const CONTACTS_TTL  = 1 * 60 * 1000; // 1 minute TTL
 
 function createClient(userId) {
   if (userSessions.has(userId)) return userSessions.get(userId);
@@ -278,27 +278,25 @@ app.get("/api/contacts", async (req, res) => {
         if (!user) continue;
 
         const serialized = c.id._serialized || "";
-        if (serialized.includes("@g.us"))        continue; // groups
-        if (serialized.includes("@broadcast"))   continue; // broadcast lists
-        if (serialized.includes("@newsletter"))  continue; // newsletters
-        if (user === "0" || user === "status")   continue; // system
+
+        // Only allow real @c.us contacts — everything else is groups, system, internal
+        if (!serialized.endsWith("@c.us")) continue;
 
         const num = user.replace(/\D/g, "");
+        // Valid international phone number: 7–15 digits (ITU-T E.164)
         if (!num || num.length < 7 || num.length > 15) continue;
 
-        // Saved name takes priority; fall back to pushname
         const savedName = (c.name || c.verifiedName || c.shortName || "").trim();
         const pushname  = (c.pushname || "").trim();
 
-        // Only include contacts saved in phone OR known WA users — filters garbage system numbers
-        const isSaved = savedName.length > 0;
-        const isKnown = c.isMyContact || c.isUser;
-        if (!isSaved && !isKnown) continue;
+        // Must be saved in phone contacts OR have exchanged messages (has pushname)
+        // This reliably excludes WA-internal phantom numbers for ALL users
+        if (!savedName && !pushname) continue;
 
         const displayName = savedName || pushname;
         const existing    = seen.get(num);
         if (!existing || (!existing.name && displayName)) {
-          seen.set(num, { id: serialized || (num + "@c.us"), name: displayName, number: num });
+          seen.set(num, { id: serialized, name: displayName, number: num });
         }
       } catch(e) { /* skip malformed contact */ }
     }
