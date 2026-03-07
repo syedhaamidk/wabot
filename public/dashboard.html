@@ -440,6 +440,8 @@ body.light .cp-dd{background:#fffdf9;border:1px solid rgba(0,0,0,.1);box-shadow:
 .qb{flex:1;min-width:0}
 .qto{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qtxt{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.fail-reason{font-size:11px;color:var(--red);margin-top:3px;white-space:normal;line-height:1.4;opacity:.85}
+.qrow-failed{border-left:2px solid var(--red)!important;background:rgba(220,38,38,.03)!important}
 .qright{text-align:right;flex-shrink:0}
 .qdate{font-size:11.5px;color:var(--sub)}
 .qtime{font-size:10px;color:var(--sub);margin-top:1px}
@@ -851,6 +853,11 @@ body.light .cp-dd{background:#fffdf9;border:1px solid rgba(0,0,0,.1);box-shadow:
         <div class="panel">
           <div class="panel-shine"></div>
           <div class="f"><label>Auto-reply text</label><textarea id="ar-msg" rows="4" placeholder="Your automatic response…">Hey! I am currently busy and will reply soon.</textarea></div>
+          <div class="f">
+            <label>Keyword triggers <span style="font-weight:400;color:var(--sub);font-size:11px">(optional — leave empty to reply to all messages)</span></label>
+            <input id="ar-keywords" type="text" placeholder="e.g. hello, hi, help (comma-separated)"/>
+            <div style="font-size:11px;color:var(--sub);margin-top:4px">Only reply when message contains one of these words</div>
+          </div>
           <div class="f"><button class="btn btn-primary" onclick="sAR()" style="max-width:200px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Save Changes
@@ -1215,17 +1222,33 @@ function renderQ(){
   const c=document.getElementById("qcard");
   if(!Q.length){ c.innerHTML='<div class="empty"><div class="empty-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg></div><p>Nothing scheduled yet</p><p class="empty-hint">Fill in the form and hit <strong style="color:var(--em)">Schedule Message</strong> to queue your first message.</p></div>'; return; }
   c.innerHTML=Q.map(m=>{
-    const dt=new Date(m.sendAt),date=dt.toLocaleDateString([],{month:"short",day:"numeric"}),time=dt.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),sid=esc(m.id),ip=m.status==="pending";
-    return `<div class="qrow">
+    const dt=new Date(m.sendAt),date=dt.toLocaleDateString([],{month:"short",day:"numeric"}),time=dt.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),sid=esc(m.id),ip=m.status==="pending",isFailed=m.status==="failed";
+    return `<div class="qrow${isFailed?" qrow-failed":""}">
       <div class="qav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-      <div class="qb"><div class="qto">${esc(m.recipientName||m.recipient)}</div><div class="qtxt" style="font-size:11px;margin-bottom:1px">+${esc(m.recipient)}</div><div class="qtxt">${esc(m.message)}</div></div>
+      <div class="qb">
+        <div class="qto">${esc(m.recipientName||m.recipient)}</div>
+        <div class="qtxt" style="font-size:11px;margin-bottom:1px">+${esc(m.recipient)}</div>
+        <div class="qtxt">${esc(m.message)}</div>
+        ${isFailed&&m.error?`<div class="fail-reason">⚠ ${esc(m.error)}</div>`:""}
+      </div>
       <div class="qright">${badge(m.status)}<div class="qdate" style="margin-top:3px">${date}</div><div class="qtime">${time}</div></div>
       <div class="row-acts">
         ${ip?`<button class="act edit" onclick="openEditModal('${sid}')" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`:""}
-        ${m.status==="failed"?`<button class="act retry" onclick="retryMsg('${sid}')" title="Retry now"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>`:""}
+        ${isFailed?`<button class="act retry" onclick="retryMsg('${sid}')" title="Retry now"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>`:""}
         <button class="act del" onclick="delMsg('${sid}')" title="Trash"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></button>
       </div></div>`;
   }).join("");
+}
+function scrollToFailed(){
+  const el = document.querySelector('.qrow-failed');
+  if(!el) return;
+  if(document.getElementById('pg-schedule').classList.contains('on') === false) go('schedule');
+  setTimeout(()=>{
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    el.style.transition='box-shadow .3s';
+    el.style.boxShadow='0 0 0 2px var(--red)';
+    setTimeout(()=>el.style.boxShadow='',1800);
+  }, 100);
 }
 async function retryMsg(id){
   try {
@@ -1233,6 +1256,8 @@ async function retryMsg(id){
     if(!r.ok){ const d=await r.json(); toast(d.error||"Could not retry","err"); return; }
     toast("Retrying in 30s ✓","ok");
     await loadQ();
+    // Auto-refresh after 35s to show updated status
+    setTimeout(loadQ, 35000);
   } catch(e){ toast("Server offline","err"); }
 }
 async function loadQ(){ try{ Q=await(await afetch(API+"/scheduled")).json();renderQ();checkFailedAlerts(); }catch(e){} }
@@ -1324,11 +1349,12 @@ async function lAR(){
     document.getElementById("ar-until").value=c.schedule.endTime;
     document.getElementById("ar-cool").value=c.cooldownMinutes;
     document.getElementById("ar-msg").value=c.busyMessage;
+    document.getElementById("ar-keywords").value=(c.keywords||[]).join(", ");
     tTF();
   }catch(e){}
 }
 async function sAR(){
-  const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
+  const kw=document.getElementById("ar-keywords").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,keywords:kw,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
   try{ const r=await afetch(API+"/autoreply",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}); toast(r.ok?"Saved ✓":"Error",r.ok?"ok":"err"); }
   catch(e){ toast("Server offline","err"); }
 }
@@ -1507,7 +1533,7 @@ async function saveTpl(){
 function editTpl(id){ const t=TPLS.find(x=>x.id===id); if(!t)return; editingTplId=id; document.getElementById("tpl-name").value=t.name; document.getElementById("tpl-body").value=t.body; document.getElementById("tpl-form-label").textContent="Edit Template"; document.getElementById("tpl-save-btn").innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px"><polyline points="20 6 9 17 4 12"/></svg>Update Template'; document.getElementById("tpl-cancel-btn").style.display=""; document.getElementById("tpl-name").focus(); }
 function cancelTplEdit(){ editingTplId=null; document.getElementById("tpl-name").value=""; document.getElementById("tpl-body").value=""; document.getElementById("tpl-form-label").textContent="New Template"; document.getElementById("tpl-save-btn").innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Template'; document.getElementById("tpl-cancel-btn").style.display="none"; }
 async function deleteTpl(id){ try{ const r=await afetch(API+"/templates/"+id,{method:"DELETE"}); if(!r.ok)return toast("Could not delete","err"); toast("Deleted"); loadTpls(); }catch(e){ toast("Server offline","err"); } }
-async function useTpl(id){ try{ const r=await afetch(API+"/templates/"+id+"/use",{method:"POST"}); const d=await r.json(); if(!r.ok)return toast("Error","err"); document.getElementById("s-msg").value=d.body; go("schedule"); toast("Template applied ✓"); }catch(e){ toast("Server offline","err"); } }
+async function useTpl(id){ try{ const r=await afetch(API+"/templates/"+id+"/use",{method:"POST"}); const d=await r.json(); if(!r.ok)return toast("Error","err"); go("schedule"); document.getElementById("s-msg").value=d.body; setTimeout(()=>{ const el=document.getElementById("s-msg"); el.focus(); el.scrollIntoView({behavior:"smooth",block:"center"}); },150); toast("Template applied ✓"); }catch(e){ toast("Server offline","err"); } }
 
 chkStatus();loadQ();loadTrash();lAR();loadTpls();
 
@@ -1537,7 +1563,7 @@ function checkFailedAlerts() {
       banner.id = "failed-banner";
       banner.style.cssText = "background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red);border-radius:12px;padding:10px 16px;margin-bottom:16px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;";
       banner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-        `<span>${failed.length} message${failed.length>1?"s":""} failed to send. <a href="#" onclick="event.preventDefault();document.querySelector('.badge-failed')?.closest('.qrow')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:inherit;text-decoration:underline;text-underline-offset:2px">View</a></span>`;
+        `<span>${failed.length} message${failed.length>1?"s":""} failed to send.</span><button onclick="scrollToFailed()" style="background:none;border:1px solid var(--red-bd);color:var(--red);padding:2px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-left:8px;font-weight:600">View ↓</button>`;
       const ph = document.querySelector("#pg-schedule .ph");
       if (ph) ph.after(banner);
     } else {

@@ -9,6 +9,7 @@ const defaultConfig = () => ({
   schedule:         { enabled: false, startTime: "22:00", endTime: "08:00" },
   cooldownMinutes:  60,
   replyToGroups:    false,
+  keywords:         [], // empty = reply to all messages
 });
 
 const userConfigs  = new Map(); // userId -> config
@@ -80,6 +81,13 @@ async function handleAutoReply(client, userId, msg) {
   if (chat.isGroup && !config.replyToGroups) return;
   if (isOnCooldown(userId, msg.from, config.cooldownMinutes)) return;
 
+  // Keyword filter — if keywords set, only reply when message matches one
+  if (config.keywords && config.keywords.length > 0) {
+    const body = (msg.body || "").toLowerCase();
+    const matches = config.keywords.some(kw => body.includes(kw));
+    if (!matches) return;
+  }
+
   try {
     await msg.reply(config.busyMessage);
     getReplyLog(userId).set(msg.from, Date.now());
@@ -102,6 +110,7 @@ function updateAutoReplyConfig(userId, newConfig) {
     ...current,
     ...newConfig,
     schedule: { ...current.schedule, ...(newConfig.schedule || {}) },
+    keywords: Array.isArray(newConfig.keywords) ? newConfig.keywords : (current.keywords || []),
   };
   userConfigs.set(userId, merged);
   saveConfig(userId, merged);

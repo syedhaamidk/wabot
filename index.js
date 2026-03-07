@@ -289,9 +289,10 @@ app.get("/api/contacts", async (req, res) => {
         const savedName = (c.name || c.verifiedName || c.shortName || "").trim();
         const pushname  = (c.pushname || "").trim();
 
-        // Must be saved in phone contacts OR have exchanged messages (has pushname)
-        // This reliably excludes WA-internal phantom numbers for ALL users
-        if (!savedName && !pushname) continue;
+        // Must have a saved name — only contacts you've actually saved in your phone
+        // pushname alone (what someone set as their WA display name) is NOT reliable —
+        // phantom/internal WA numbers sometimes have pushnames too
+        if (!savedName) continue;
 
         const displayName = savedName || pushname;
         const existing    = seen.get(num);
