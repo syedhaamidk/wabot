@@ -1354,7 +1354,7 @@ async function lAR(){
   }catch(e){}
 }
 async function sAR(){
-  const kw=document.getElementById("ar-keywords").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||60,keywords:kw,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
+  const kw=document.getElementById("ar-keywords").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);const b={enabled:document.getElementById("ar-on").checked,replyToGroups:document.getElementById("ar-grp").checked,busyMessage:document.getElementById("ar-msg").value,cooldownMinutes:parseInt(document.getElementById("ar-cool").value)||0,keywords:kw,schedule:{enabled:document.getElementById("ar-tb").checked,startTime:document.getElementById("ar-from").value,endTime:document.getElementById("ar-until").value}};
   try{ const r=await afetch(API+"/autoreply",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}); toast(r.ok?"Saved ✓":"Error",r.ok?"ok":"err"); }
   catch(e){ toast("Server offline","err"); }
 }
@@ -1405,22 +1405,25 @@ async function disconnectWA(){
 }
 
 /* ── Contact Picker ── */
-let contacts=null,cpOpen=null;
+let contacts = null, contactsLoadedAt = 0, cpOpen = null;
+const CONTACTS_TTL = 2 * 60 * 1000; // 2 min cache
 async function refreshContacts(prefix){
   const btn=document.getElementById("cp-refresh-"+prefix);
   if(btn){ btn.style.animation="spin 0.8s linear infinite"; btn.style.opacity="0.5"; btn.disabled=true; }
   try {
     await afetch(API+"/contacts/refresh", { method: "POST" });
-    contacts = null; // bust client cache
+    contacts = null; contactsLoadedAt = 0; // bust client cache
     const list = await loadContacts();
     renderContactDropdown(prefix, list, "");
   } catch(e) {}
   if(btn){ btn.style.animation=""; btn.style.opacity=""; btn.disabled=false; }
 }
 async function loadContacts(){
-  if(contacts)return contacts;
+  const stale = Date.now() - contactsLoadedAt > CONTACTS_TTL;
+  if(contacts !== null && contacts.length > 0 && !stale) return contacts;
   try{
-    const r=await afetch(API+"/contacts"); if(!r.ok){contacts=[];return contacts;}
+    const r=await afetch(API+"/contacts");
+    if(!r.ok){ if(contacts === null) contacts=[]; return contacts; }
     const raw=await r.json();
     const seen=new Map();
     for(const c of raw){
@@ -1432,7 +1435,8 @@ async function loadContacts(){
       if(hasName&&!existingHasName)seen.set(num,c);
     }
     contacts=Array.from(seen.values()).sort((a,b)=>getDisplayName(a).localeCompare(getDisplayName(b)));
-  }catch(e){contacts=[];}
+    contactsLoadedAt = Date.now();
+  }catch(e){ if(contacts === null) contacts=[]; }
   return contacts;
 }
 function getDisplayName(c){ if(c.name&&c.name.trim()&&c.name!==c.number)return c.name.trim(); return "+"+c.number; }

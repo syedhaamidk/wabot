@@ -35,19 +35,43 @@ function saveConfig(userId, config) {
   fs.writeFileSync(path.join(dir, "autoreply.json"), JSON.stringify(config, null, 2));
 }
 
-// ── Reply log ─────────────────────────────────────────────────────────────────
+// ── Reply log (persisted to disk so restarts don't reset cooldowns) ───────────
+function replyLogFile(userId) {
+  return path.join(DATA_DIR, userId, "autoreply_log.json");
+}
+
 function getReplyLog(userId) {
-  if (!userReplyLog.has(userId)) userReplyLog.set(userId, new Map());
+  if (!userReplyLog.has(userId)) {
+    // Load from disk on first access
+    const file = replyLogFile(userId);
+    const map = new Map();
+    if (fs.existsSync(file)) {
+      try {
+        const entries = JSON.parse(fs.readFileSync(file, "utf8"));
+        for (const [chatId, ts] of entries) map.set(chatId, ts);
+      } catch { /* ignore corrupt file */ }
+    }
+    userReplyLog.set(userId, map);
+  }
   return userReplyLog.get(userId);
+}
+
+function saveReplyLog(userId) {
+  const dir = path.join(DATA_DIR, userId);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const entries = Array.from(getReplyLog(userId).entries());
+  fs.writeFileSync(replyLogFile(userId), JSON.stringify(entries, null, 2));
 }
 
 // Prune stale entries from the reply log to prevent unbounded memory growth
 function pruneReplyLog(userId, cooldownMinutes) {
   const log     = getReplyLog(userId);
   const cutoff  = Date.now() - cooldownMinutes * 60 * 1000;
+  let pruned = false;
   for (const [chatId, ts] of log) {
-    if (ts < cutoff) log.delete(chatId);
+    if (ts < cutoff) { log.delete(chatId); pruned = true; }
   }
+  if (pruned) saveReplyLog(userId);
 }
 
 // ── Schedule helpers ──────────────────────────────────────────────────────────
@@ -65,6 +89,8 @@ function isWithinSchedule(config) {
 }
 
 function isOnCooldown(userId, chatId, cooldownMinutes) {
+  // cooldownMinutes of 0 means no cooldown — always reply
+  if (!cooldownMinutes || cooldownMinutes <= 0) return false;
   const last = getReplyLog(userId).get(chatId);
   if (!last) return false;
   return (Date.now() - last) / 60000 < cooldownMinutes;
@@ -91,6 +117,7 @@ async function handleAutoReply(client, userId, msg) {
   try {
     await msg.reply(config.busyMessage);
     getReplyLog(userId).set(msg.from, Date.now());
+    saveReplyLog(userId);
     pruneReplyLog(userId, config.cooldownMinutes);
     console.log(`[AutoReply:${userId}] Replied to ${msg.from}`);
   } catch (err) {
@@ -114,7 +141,16 @@ function updateAutoReplyConfig(userId, newConfig) {
   };
   userConfigs.set(userId, merged);
   saveConfig(userId, merged);
-  if (!merged.enabled) getReplyLog(userId).clear();
+  if (!merged.enabled) {
+    getReplyLog(userId).clear();
+    saveReplyLog(userId);
+  }
 }
 
-module.exports = { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig };
+// Reset the reply log for a user (clears all cooldowns immediately)
+function resetReplyLog(userId) {
+  getReplyLog(userId).clear();
+  saveReplyLog(userId);
+}
+
+module.exports = { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig, resetReplyLog };
