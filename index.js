@@ -290,7 +290,7 @@ app.get("/api/contacts", async (req, res) => {
         const displayName = savedName || pushname;
         const existing    = seen.get(num);
         if (!existing || (!existing.name && displayName)) {
-          seen.set(num, { id: serialized, name: displayName, number: num });
+          seen.set(num, { id: serialized, name: displayName, number: num, isGroup: isGroup || false });
         }
       } catch(e) {}
     }

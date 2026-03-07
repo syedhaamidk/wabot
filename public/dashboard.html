@@ -1429,7 +1429,7 @@ async function loadContacts(){
     const seen=new Map();
     for(const c of raw){
       const num=(c.number||"").replace(/\D/g,""); if(!num||num.length<7||num.length>15)continue;
-      if(c.id&&c.id.includes("@broadcast"))continue; if(c.id&&c.id.includes("@g.us"))continue; if(c.id&&c.id.includes("status"))continue;
+      if(c.id&&c.id.includes("@broadcast"))continue; if(c.id&&c.id.includes("status"))continue;
       const existing=seen.get(num);
       if(!existing){seen.set(num,c);continue;}
       const hasName=c.name&&c.name.trim()&&c.name!==num; const existingHasName=existing.name&&existing.name.trim()&&existing.name!==num;
