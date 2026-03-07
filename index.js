@@ -24,12 +24,18 @@ const {
   restoreFromTrash, permanentlyDelete,
   getScheduledMessages, getTrashedMessages,
   restoreUserJobs,
+  setSessionsMap,  // ← NEW: lets scheduler check live session status
 } = require("./scheduler");
 const { handleAutoReply, getAutoReplyConfig, updateAutoReplyConfig } = require("./autoreply");
 const { getTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, recordUsage } = require("./templates");
 
 // ── Per-user WhatsApp clients ─────────────────────────────────────────────────
 const userSessions = new Map();
+
+// FIX: Wire scheduler to the live sessions map so waitForClient checks
+// session.status === "ready" instead of client.info (which can be null
+// even after the ready event fires, causing jobs to hang as "pending")
+setSessionsMap(userSessions);
 
 // Temporary store for Google OAuth tokens (30s TTL)
 const pendingOAuthTokens = new Map();
@@ -40,9 +46,9 @@ function storePendingToken(token, email) {
   return code;
 }
 
-// Per-user contacts cache (5-minute TTL)
+// Per-user contacts cache (1-minute TTL)
 const contactsCache = new Map();
-const CONTACTS_TTL  = 1 * 60 * 1000; // 1 minute TTL
+const CONTACTS_TTL  = 1 * 60 * 1000;
 
 function createClient(userId) {
   if (userSessions.has(userId)) return userSessions.get(userId);
@@ -158,7 +164,6 @@ const PUBLIC = fs.existsSync(path.join(__dirname, "public"))
 app.get("/", (req, res) => res.sendFile(path.join(PUBLIC, "login.html")));
 app.get("/dashboard", (req, res) => res.sendFile(path.join(PUBLIC, "dashboard.html")));
 
-// Serve static assets only — block server .js files from being publicly accessible
 app.use(express.static(PUBLIC, {
   index: false,
   setHeaders: (res, filePath) => {
@@ -204,7 +209,6 @@ app.get("/api/auth/google/callback", async (req, res) => {
   }
 });
 
-// Exchange short-lived OAuth code for token (public — called by dashboard JS)
 app.get("/api/auth/oauth-token", (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).json({ error: "Missing code." });
@@ -276,33 +280,21 @@ app.get("/api/contacts", async (req, res) => {
       try {
         const user = c.id && c.id.user;
         if (!user) continue;
-
         const serialized = c.id._serialized || "";
-
-        // Only allow real @c.us contacts — everything else is groups, system, internal
         if (!serialized.endsWith("@c.us")) continue;
-
         const num = user.replace(/\D/g, "");
-        // Valid international phone number: 7–15 digits (ITU-T E.164)
         if (!num || num.length < 7 || num.length > 15) continue;
-
         const savedName = (c.name || c.verifiedName || c.shortName || "").trim();
         const pushname  = (c.pushname || "").trim();
-
-        // Must have a saved name — only contacts you've actually saved in your phone
-        // pushname alone (what someone set as their WA display name) is NOT reliable —
-        // phantom/internal WA numbers sometimes have pushnames too
         if (!savedName) continue;
-
         const displayName = savedName || pushname;
         const existing    = seen.get(num);
         if (!existing || (!existing.name && displayName)) {
           seen.set(num, { id: serialized, name: displayName, number: num });
         }
-      } catch(e) { /* skip malformed contact */ }
+      } catch(e) {}
     }
 
-    // Named contacts first, then alphabetical
     const result = Array.from(seen.values()).sort((a, b) => {
       if (a.name && !b.name) return -1;
       if (!a.name && b.name) return 1;
@@ -310,7 +302,7 @@ app.get("/api/contacts", async (req, res) => {
       return a.number.localeCompare(b.number);
     });
 
-    console.log(`[Contacts:${req.user.id}] ${result.length} contacts (${result.filter(c => c.name).length} named)`);
+    console.log(`[Contacts:${req.user.id}] ${result.length} contacts`);
     contactsCache.set(req.user.id, { data: result, fetchedAt: Date.now() });
     res.json(result);
   } catch(e) {
@@ -319,7 +311,6 @@ app.get("/api/contacts", async (req, res) => {
   }
 });
 
-// Force-refresh contacts cache
 app.post("/api/contacts/refresh", (req, res) => {
   contactsCache.delete(req.user.id);
   res.json({ success: true });
@@ -373,7 +364,6 @@ app.delete("/api/scheduled/:id", (req, res) => {
   res.json({ success: true });
 });
 
-// Retry a failed message — reschedules it 30 seconds from now
 app.post("/api/scheduled/:id/retry", (req, res) => {
   const session = getSession(req.user.id);
   if (!session) return res.status(503).json({ error: "Session not found." });
@@ -381,7 +371,7 @@ app.post("/api/scheduled/:id/retry", (req, res) => {
   const job = msgs.find(m => m.id === req.params.id);
   if (!job) return res.status(404).json({ error: "Message not found." });
   if (job.status !== "failed") return res.status(400).json({ error: "Only failed messages can be retried." });
-  const retryAt = new Date(Date.now() + 30 * 1000); // 30s from now
+  const retryAt = new Date(Date.now() + 30 * 1000);
   const updated = editScheduledMessage(session.client, req.user.id, req.params.id, {
     recipient: job.recipient,
     recipientName: job.recipientName,

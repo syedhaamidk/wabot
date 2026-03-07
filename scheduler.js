@@ -24,7 +24,7 @@ function getTrashedMap(userId) {
   return userTrashed.get(userId);
 }
 
-// ── Debounced async writes (avoids blocking event loop on every operation) ────
+// ── Debounced async writes ────────────────────────────────────────────────────
 const writeTimers = new Map();
 function debouncedWrite(key, fn, delay = 300) {
   if (writeTimers.has(key)) clearTimeout(writeTimers.get(key));
@@ -71,20 +71,42 @@ function loadUserData(userId) {
   }
 }
 
-// ── Wait for WA client ready ─────────────────────────────────────────────────
-function waitForClient(client, maxWaitMs = 60000) {
+// ── Wait for WA client ready ──────────────────────────────────────────────────
+// FIX: Check session.status === "ready" via userSessions map instead of
+//      client.info — client.info can be null even after the ready event fires,
+//      causing waitForClient to time out and leaving jobs stuck on "pending".
+const userSessions = new Map(); // injected by index.js via setSessionsMap()
+
+function setSessionsMap(map) {
+  // Called once from index.js so scheduler can check real-time session status
+  userSessions._ref = map;
+}
+
+function isClientReady(client, userId) {
+  // Primary: check session map (most reliable)
+  if (userSessions._ref) {
+    const session = userSessions._ref.get(userId);
+    if (session && session.status === "ready") return true;
+  }
+  // Fallback: check client.info directly
+  if (client && client.info) return true;
+  return false;
+}
+
+function waitForClient(client, userId, maxWaitMs = 60000) {
   return new Promise((resolve, reject) => {
-    // client.info is populated once WA is ready
-    if (client.info) return resolve();
+    if (isClientReady(client, userId)) return resolve();
     const start    = Date.now();
     const interval = setInterval(() => {
-      if (client.info) { clearInterval(interval); return resolve(); }
+      if (isClientReady(client, userId)) {
+        clearInterval(interval);
+        return resolve();
+      }
       if (Date.now() - start >= maxWaitMs) {
         clearInterval(interval);
-        // If we've waited long enough, try anyway — better than failing silently
-        reject(new Error(`WhatsApp client not ready after ${maxWaitMs/1000}s`));
+        reject(new Error(`WhatsApp not ready after ${maxWaitMs / 1000}s`));
       }
-    }, 500); // check every 500ms instead of 1000ms
+    }, 500);
   });
 }
 
@@ -95,7 +117,7 @@ async function sendJob(client, userId, job) {
     : job.recipient.replace(/[^0-9]/g, "") + "@c.us";
 
   try {
-    await waitForClient(client, 60000);
+    await waitForClient(client, userId, 60000);
     await client.sendMessage(chatId, job.message);
     console.log(`[Scheduler:${userId}] Sent to ${job.recipient}`);
     const scheduled = getScheduled(userId);
@@ -120,7 +142,6 @@ async function sendJob(client, userId, job) {
 // ── Retry with exponential backoff: 15s → 45s → 135s ────────────────────────
 const MAX_RETRIES = 3;
 function sendWithRetry(client, userId, job, attemptsLeft, retryDelayMs) {
-  // First attempt: fire immediately. Retries use exponential backoff.
   const isFirstAttempt = attemptsLeft === MAX_RETRIES;
   const delay = isFirstAttempt ? 0 : retryDelayMs;
 
@@ -131,14 +152,33 @@ function sendWithRetry(client, userId, job, attemptsLeft, retryDelayMs) {
       scheduled.set(job.id, { ...existing, status: "pending", timeout: null });
       saveToFile(userId);
     }
+
     const ok = await sendJob(client, userId, job);
-    if (!ok && attemptsLeft > 1) {
-      const nextDelay  = retryDelayMs * 3;
-      const attemptNum = MAX_RETRIES - attemptsLeft + 1;
-      console.log(`[Scheduler:${userId}] Retry ${attemptNum}/${MAX_RETRIES} in ${nextDelay/1000}s`);
-      const current = scheduled.get(job.id);
-      if (current) { scheduled.set(job.id, { ...current, status: "pending" }); saveToFile(userId); }
-      sendWithRetry(client, userId, job, attemptsLeft - 1, nextDelay);
+
+    if (!ok) {
+      if (attemptsLeft > 1) {
+        // More retries left — schedule next attempt
+        const nextDelay  = retryDelayMs * 3;
+        const attemptNum = MAX_RETRIES - attemptsLeft + 1;
+        console.log(`[Scheduler:${userId}] Retry ${attemptNum}/${MAX_RETRIES} in ${nextDelay / 1000}s`);
+        const current = scheduled.get(job.id);
+        if (current) { scheduled.set(job.id, { ...current, status: "pending" }); saveToFile(userId); }
+        sendWithRetry(client, userId, job, attemptsLeft - 1, nextDelay);
+      } else {
+        // FIX: All retries exhausted — mark as failed so it doesn't stay "pending" forever
+        console.log(`[Scheduler:${userId}] All ${MAX_RETRIES} attempts failed for job ${job.id}`);
+        const current = scheduled.get(job.id);
+        if (current && current.status !== "failed") {
+          scheduled.set(job.id, {
+            ...current,
+            status: "failed",
+            failedAt: new Date().toISOString(),
+            error: current.error || "All retry attempts failed. Check WhatsApp connection.",
+            timeout: null,
+          });
+          saveToFile(userId);
+        }
+      }
     }
   }, delay);
 
@@ -151,7 +191,7 @@ function sendWithRetry(client, userId, job, attemptsLeft, retryDelayMs) {
 function scheduleMessage(client, userId, { recipient, recipientName, message, sendAt }) {
   const id       = crypto.randomUUID();
   const sendTime = new Date(sendAt);
-  const delay    = Math.max(0, sendTime.getTime() - Date.now()); // never negative
+  const delay    = Math.max(0, sendTime.getTime() - Date.now());
   const job      = { id, recipient, recipientName: recipientName || recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
   const timeout  = setTimeout(() => sendWithRetry(client, userId, job, MAX_RETRIES, 15000), delay);
   getScheduled(userId).set(id, { ...job, timeout });
@@ -199,11 +239,9 @@ function restoreFromTrash(client, userId, id) {
     const sendTime = new Date(job.sendAt).getTime();
     const now      = Date.now();
     if (sendTime > now) {
-      // Future: schedule normally with retries
       const timeout = setTimeout(() => sendWithRetry(client, userId, job, MAX_RETRIES, 15000), sendTime - now);
       scheduled.set(job.id, { ...job, timeout });
     } else {
-      // Overdue: send immediately with retries (was using sendJob without retries before — fixed)
       scheduled.set(job.id, { ...job, timeout: null });
       sendWithRetry(client, userId, job, MAX_RETRIES, 15000);
     }
@@ -231,7 +269,6 @@ function getTrashedMessages(userId) {
   return Array.from(getTrashedMap(userId).values());
 }
 
-// ── Restore single user's jobs on client connect ──────────────────────────────
 function restoreUserJobs(client, userId) {
   loadUserData(userId);
   const scheduled = getScheduled(userId);
@@ -261,4 +298,5 @@ module.exports = {
   restoreFromTrash, permanentlyDelete,
   getScheduledMessages, getTrashedMessages,
   restoreUserJobs, loadUserData,
+  setSessionsMap, // ← new export
 };
