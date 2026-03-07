@@ -46,21 +46,21 @@
   --bnav:       68px;
 }
 body.light{
-  --bg:         #f2f5fb;
-  --bg2:        #e8edf7;
-  --surface:    #dde4f0;
-  --card:       rgba(255,255,255,.85);
-  --card-b:     rgba(0,0,0,.09);
-  --card-h:     rgba(255,255,255,.98);
-  --text:       #0d1120;
-  --text2:      rgba(15,25,65,.6);
-  --sub:        rgba(15,25,65,.4);
+  --bg:         #f7f5f0;
+  --bg2:        #ede9e1;
+  --surface:    #e3ddd4;
+  --card:       rgba(255,253,249,.92);
+  --card-b:     rgba(0,0,0,.08);
+  --card-h:     #fffdf9;
+  --text:       #1a1510;
+  --text2:      rgba(26,21,16,.58);
+  --sub:        rgba(26,21,16,.38);
   --sep:        rgba(0,0,0,.07);
-  --em:         #059669;
-  --em2:        #047857;
-  --em-glow:    rgba(5,150,105,.15);
-  --em-bg:      rgba(5,150,105,.08);
-  --em-bd:      rgba(5,150,105,.22);
+  --em:         #16a34a;
+  --em2:        #15803d;
+  --em-glow:    rgba(22,163,74,.18);
+  --em-bg:      rgba(22,163,74,.09);
+  --em-bd:      rgba(22,163,74,.25);
   --red:        #dc2626;
   --red-bg:     rgba(220,38,38,.07);
   --red-bd:     rgba(220,38,38,.2);
@@ -69,10 +69,10 @@ body.light{
   --amber-bd:   rgba(180,83,9,.22);
   --blue:       #2563eb;
   --blue-bg:    rgba(37,99,235,.07);
-  --sb-bg:      rgba(255,255,255,.96);
-  --input-bg:   rgba(0,0,0,.03);
+  --sb-bg:      rgba(255,253,249,.98);
+  --input-bg:   rgba(0,0,0,.035);
   --input-bd:   rgba(0,0,0,.1);
-  --modal-bg:   rgba(248,250,255,.98);
+  --modal-bg:   rgba(255,253,249,.98);
 }
 
 html,body{
@@ -91,12 +91,27 @@ html,body{
 .o1{width:70vw;height:70vw;top:-22%;left:-18%;background:radial-gradient(circle,rgba(14,232,160,.09) 0%,transparent 60%);animation-duration:28s}
 .o2{width:55vw;height:55vw;bottom:-15%;right:-10%;background:radial-gradient(circle,rgba(123,159,255,.07) 0%,transparent 60%);animation-duration:34s;animation-direction:alternate-reverse}
 .o3{width:35vw;height:35vw;top:35%;left:45%;background:radial-gradient(circle,rgba(14,232,160,.05) 0%,transparent 60%);animation-duration:21s}
+/* Light mode orbs: warm parchment tones */
+body.light .o1{background:radial-gradient(circle,rgba(22,163,74,.08) 0%,transparent 60%)}
+body.light .o2{background:radial-gradient(circle,rgba(234,179,8,.07) 0%,transparent 60%)}
+body.light .o3{background:radial-gradient(circle,rgba(249,115,22,.05) 0%,transparent 60%)}
 @keyframes drift{0%{transform:translate(0,0)}50%{transform:translate(30px,-20px) scale(1.05)}100%{transform:translate(-20px,30px) scale(.95)}}
 
 /* ── Shell ── */
 .shell{position:relative;z-index:1;display:flex;min-height:100vh}
-body.light .noise{opacity:.008}
-body.light .orb{opacity:.3}
+body.light .noise{opacity:.012}
+body.light .orb{opacity:.5}
+body.light .sb{border-right:1px solid rgba(0,0,0,.08);box-shadow:2px 0 20px rgba(0,0,0,.05)}
+body.light .topbar{border-bottom:1px solid rgba(0,0,0,.07);box-shadow:0 1px 12px rgba(0,0,0,.05)}
+body.light .card,body.light .stat-card{box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.07)}
+body.light .field input,body.light .field textarea,body.light .field select{background:#fff;border:1px solid rgba(0,0,0,.11);box-shadow:0 1px 3px rgba(0,0,0,.04) inset}
+body.light .field input:focus,body.light .field textarea:focus{border-color:var(--em);box-shadow:0 0 0 3px rgba(22,163,74,.1)}
+body.light .btn-primary{box-shadow:0 2px 8px rgba(22,163,74,.3),0 1px 2px rgba(0,0,0,.1)}
+body.light .btn-primary:hover{box-shadow:0 4px 16px rgba(22,163,74,.4),0 1px 2px rgba(0,0,0,.1)}
+body.light .stat-card{background:linear-gradient(135deg,#fffdf9 0%,#f9f6ef 100%)}
+body.light .qrow{background:#fffdf9;border:1px solid rgba(0,0,0,.07);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+body.light .modal-box{box-shadow:0 8px 40px rgba(0,0,0,.14),0 2px 8px rgba(0,0,0,.08)}
+body.light .cp-dd{background:#fffdf9;border:1px solid rgba(0,0,0,.1);box-shadow:0 8px 32px rgba(0,0,0,.12)}
 
 /* ════════════════════════ SIDEBAR ════════════════════════ */
 .sb{
@@ -287,7 +302,7 @@ body.light .orb{opacity:.3}
 .psub{font-size:13px;color:var(--sub)}
 
 /* ════════════════════════ STAT CARDS ════════════════════════ */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;align-items:stretch}
 .stat-card{
   padding:20px 22px 18px;border-radius:18px;
   background:var(--card);border:1px solid var(--card-b);
@@ -587,14 +602,14 @@ body.light .orb{opacity:.3}
 @media(max-width:640px){
   .sb{transform:translateX(-100%);width:min(268px,82vw)}
   .sb.open{transform:translateX(0)}
-.sb.open .sb-wordmark,.sb.open .sb-ilabel,.sb.open .sb-glabel,.sb.open .sb-conn-label,.sb.open .sb-email,.sb.open .sb-theme-lbl{display:block!important;opacity:1!important;width:auto!important}
-.sb.open .sb-item{justify-content:flex-start!important;padding:10px 14px!important;width:100%!important}
-.sb.open .sb-nav{padding:8px 10px!important}
-.sb.open .sb-chev{display:block!important}
-.sb.open .conn-row{justify-content:flex-start!important;padding:10px 14px!important}
-.sb.open .sb-theme{justify-content:flex-start!important;padding:10px 14px!important}
-.sb.open .sb-acct{justify-content:flex-start!important;padding:10px 14px!important}
-.sb.open .sb-ft{padding:8px 10px 24px!important}
+  .sb.open .sb-wordmark,.sb.open .sb-ilabel,.sb.open .sb-glabel,.sb.open .sb-conn-label,.sb.open .sb-email,.sb.open .sb-theme-lbl{display:block!important;opacity:1!important;width:auto!important}
+  .sb.open .sb-item{justify-content:flex-start!important;padding:10px 14px!important;width:100%!important}
+  .sb.open .sb-nav{padding:8px 10px!important}
+  .sb.open .sb-chev{display:block!important}
+  .sb.open .conn-row{justify-content:flex-start!important;padding:10px 14px!important}
+  .sb.open .sb-theme{justify-content:flex-start!important;padding:10px 14px!important}
+  .sb.open .sb-acct{justify-content:flex-start!important;padding:10px 14px!important}
+  .sb.open .sb-ft{padding:8px 10px 24px!important}
   .sb-overlay{display:block;pointer-events:none}
   .sb-overlay.open{pointer-events:auto}
   .sb-close{display:grid}
@@ -1386,7 +1401,24 @@ async function loadContacts(){
 function getDisplayName(c){ if(c.name&&c.name.trim()&&c.name!==c.number)return c.name.trim(); return "+"+c.number; }
 function getInitials(n){ const w=n.replace(/[^a-zA-Z0-9 ]/g," ").trim().split(/\s+/); if(w.length>=2)return(w[0][0]+w[1][0]).toUpperCase(); return n.replace(/[^a-zA-Z0-9]/g,"").slice(0,2).toUpperCase()||"?"; }
 function getOrCreateDD(prefix){ let dd=document.getElementById(prefix+"-cp-dd"); if(!dd){ dd=document.createElement("div"); dd.id=prefix+"-cp-dd"; dd.className="cp-dd"; dd.setAttribute("dir","ltr"); dd.style.cssText="display:none;direction:ltr;text-align:left"; document.body.appendChild(dd); } return dd; }
-function positionDropdown(prefix){ const btn=document.getElementById(prefix+"-cp-btn"),dd=getOrCreateDD(prefix),rect=btn.getBoundingClientRect(),ddW=270,ddH=320; let left=rect.right+8; if(left+ddW>window.innerWidth-8)left=window.innerWidth-ddW-8; left=Math.max(8,left); let top=rect.bottom+4; if(top+ddH>window.innerHeight&&rect.top-ddH>8)top=rect.top-ddH-4; dd.style.left=left+"px"; dd.style.top=Math.max(8,top)+"px"; }
+function positionDropdown(prefix){
+  const dd=getOrCreateDD(prefix);
+  if(window.innerWidth<=640){
+    // Mobile: full-width fixed at bottom above bottom nav
+    const bnav=document.querySelector('.bnav');
+    const bnavH=bnav?bnav.offsetHeight:60;
+    Object.assign(dd.style,{left:'8px',right:'8px',width:'auto',top:'auto',bottom:(bnavH+8)+'px',position:'fixed',maxHeight:'55vh'});
+    return;
+  }
+  // Desktop: position beside button
+  const btn=document.getElementById(prefix+"-cp-btn"),rect=btn.getBoundingClientRect(),ddW=270,ddH=320;
+  let left=rect.right+8;
+  if(left+ddW>window.innerWidth-8)left=window.innerWidth-ddW-8;
+  left=Math.max(8,left);
+  let top=rect.bottom+4;
+  if(top+ddH>window.innerHeight&&rect.top-ddH>8)top=rect.top-ddH-4;
+  Object.assign(dd.style,{left:left+'px',top:Math.max(8,top)+'px',right:'auto',bottom:'auto',width:'270px',position:'fixed',maxHeight:'320px'});
+}
 async function toggleContactPicker(prefix){ const dd=getOrCreateDD(prefix); if(dd.style.display!=="none"){closeContactPicker(prefix);return;} cpOpen=prefix; dd.style.display="block"; positionDropdown(prefix); dd.innerHTML='<div class="cp-loading">Loading contacts…</div>';
   try { const list=await loadContacts(); renderContactDropdown(prefix,list,""); }
   catch(e) { dd.innerHTML='<div class="cp-empty">⚠️ Could not load contacts. Is WhatsApp connected?</div>'; } }
@@ -1419,6 +1451,20 @@ function selectContact(prefix,number,name){ document.getElementById(prefix+"-to"
 function onToInput(val){ document.getElementById("s-to-name").value=""; const btn=document.getElementById("s-cp-btn"); if(btn)btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Contacts'; closeContactPicker("s"); }
 document.addEventListener("click",e=>{ if(!cpOpen)return; const btn=document.getElementById(cpOpen+"-cp-btn"),dd=document.getElementById(cpOpen+"-cp-dd"); if(btn&&!btn.contains(e.target)&&dd&&!dd.contains(e.target))closeContactPicker(cpOpen); });
 window.addEventListener("resize",()=>{if(cpOpen)positionDropdown(cpOpen);});
+
+// Swipe left to close sidebar on mobile
+(function(){
+  let tsx=0,tsy=0;
+  document.addEventListener("touchstart",e=>{tsx=e.touches[0].clientX;tsy=e.touches[0].clientY;},{passive:true});
+  document.addEventListener("touchend",e=>{
+    const dx=e.changedTouches[0].clientX-tsx;
+    const dy=Math.abs(e.changedTouches[0].clientY-tsy);
+    // Swipe left >50px, more horizontal than vertical → close sidebar
+    if(dx<-50&&dy<40&&document.querySelector('.sb.open'))closeSb();
+    // Swipe right from left edge >50px → open sidebar
+    if(dx>50&&dy<40&&tsx<30&&window.innerWidth<=640)openSb();
+  },{passive:true});
+})();
 window.addEventListener("scroll",()=>{if(cpOpen)positionDropdown(cpOpen);},true);
 
 /* ── Templates ── */
