@@ -74,12 +74,17 @@ function loadUserData(userId) {
 // ── Wait for WA client ready ─────────────────────────────────────────────────
 function waitForClient(client, maxWaitMs = 60000) {
   return new Promise((resolve, reject) => {
+    // client.info is populated once WA is ready
     if (client.info) return resolve();
     const start    = Date.now();
     const interval = setInterval(() => {
-      if (client.info)                       { clearInterval(interval); return resolve(); }
-      if (Date.now() - start >= maxWaitMs)   { clearInterval(interval); reject(new Error(`WhatsApp client not ready after ${maxWaitMs/1000}s`)); }
-    }, 1000);
+      if (client.info) { clearInterval(interval); return resolve(); }
+      if (Date.now() - start >= maxWaitMs) {
+        clearInterval(interval);
+        // If we've waited long enough, try anyway — better than failing silently
+        reject(new Error(`WhatsApp client not ready after ${maxWaitMs/1000}s`));
+      }
+    }, 500); // check every 500ms instead of 1000ms
   });
 }
 
@@ -114,7 +119,11 @@ async function sendJob(client, userId, job) {
 
 // ── Retry with exponential backoff: 15s → 45s → 135s ────────────────────────
 const MAX_RETRIES = 3;
-function sendWithRetry(client, userId, job, attemptsLeft, delayMs) {
+function sendWithRetry(client, userId, job, attemptsLeft, retryDelayMs) {
+  // First attempt: fire immediately. Retries use exponential backoff.
+  const isFirstAttempt = attemptsLeft === MAX_RETRIES;
+  const delay = isFirstAttempt ? 0 : retryDelayMs;
+
   const timeout = setTimeout(async () => {
     const scheduled = getScheduled(userId);
     const existing  = scheduled.get(job.id);
@@ -124,14 +133,14 @@ function sendWithRetry(client, userId, job, attemptsLeft, delayMs) {
     }
     const ok = await sendJob(client, userId, job);
     if (!ok && attemptsLeft > 1) {
-      const nextDelay  = delayMs * 3;
+      const nextDelay  = retryDelayMs * 3;
       const attemptNum = MAX_RETRIES - attemptsLeft + 1;
       console.log(`[Scheduler:${userId}] Retry ${attemptNum}/${MAX_RETRIES} in ${nextDelay/1000}s`);
       const current = scheduled.get(job.id);
       if (current) { scheduled.set(job.id, { ...current, status: "pending" }); saveToFile(userId); }
       sendWithRetry(client, userId, job, attemptsLeft - 1, nextDelay);
     }
-  }, delayMs);
+  }, delay);
 
   const scheduled = getScheduled(userId);
   const existing  = scheduled.get(job.id);
@@ -142,7 +151,7 @@ function sendWithRetry(client, userId, job, attemptsLeft, delayMs) {
 function scheduleMessage(client, userId, { recipient, recipientName, message, sendAt }) {
   const id       = crypto.randomUUID();
   const sendTime = new Date(sendAt);
-  const delay    = sendTime.getTime() - Date.now();
+  const delay    = Math.max(0, sendTime.getTime() - Date.now()); // never negative
   const job      = { id, recipient, recipientName: recipientName || recipient, message, sendAt: sendTime.toISOString(), status: "pending" };
   const timeout  = setTimeout(() => sendWithRetry(client, userId, job, MAX_RETRIES, 15000), delay);
   getScheduled(userId).set(id, { ...job, timeout });
